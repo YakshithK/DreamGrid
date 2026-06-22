@@ -19,7 +19,7 @@ class RescueGridEnv:
             self.seed = seed
             self.rng = np.random.default_rng(seed)
 
-        map_seed = int(self.rng_integers(0, 1_000_000_000))
+        map_seed = int(self.rng.integers(0, 1_000_000_000))
         self.grid, self.agent_pos, self.goal_pos = generate_map(seed=map_seed)
         self.steps = 0
         self.done = False

@@ -15,7 +15,7 @@ def shortest_path(grid, start, goal):
     parent = {start: None}
 
     while queue:
-        current = queue.popLeft()
+        current = queue.popleft()
 
         if current == goal:
             break
