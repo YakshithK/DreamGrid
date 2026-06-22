@@ -57,8 +57,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("-
-    -checkpoint_dir", default="checkpoints")
+    parser.add_argument("--checkpoint_dir", default="checkpoints")
     args = parser.parse_args()
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
