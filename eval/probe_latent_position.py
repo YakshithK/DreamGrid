@@ -18,7 +18,7 @@ class PositionProbeDataset(Dataset):
     def __len__(self):
         return len(self.positions)
 
-    def __getitems__(self, idx):
+    def __getitem__(self, idx):
         image = self.images[idx].astype(np.float32) / 255.0
         image = torch.from_numpy(image).permute(2, 0, 1)
 
@@ -46,7 +46,7 @@ class LatentPositionProbe(nn.Module):
         col_logits = self.col_head(h)
         return row_logits, col_logits
 
-def eval(autoencoder, probe, loader, device):
+def evaluate(autoencoder, probe, loader, device):
     autoencoder.eval()
     probe.eval()
 
@@ -54,12 +54,12 @@ def eval(autoencoder, probe, loader, device):
     total = 0
 
     with torch.no_grad():
-        for images, row, col in loader:
+        for image, row, col in loader:
             image = image.to(device)
             row = row.to(device)
             col = col.to(device)
 
-            z = autoencoder.encode(images)
+            z = autoencoder.encode(image)
             row_logits, col_logits = probe(z)
 
             row_pred = row_logits.argmax(dim=1)
@@ -115,7 +115,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-        acc = eval(autoencoder, probe, test_loader, device)
+        acc = evaluate(autoencoder, probe, test_loader, device)
         print(f"Epoch {epoch}: Test Accuracy: {acc:.4f}")
 
 if __name__ == '__main__':
