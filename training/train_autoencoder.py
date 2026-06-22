@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
@@ -14,9 +13,10 @@ class ImageDataset(Dataset):
         data = np.load(path)
         self.current_images = data['current_images']
         self.next_images = data['next_images']
+        self.length = len(self.current_images) * 2
 
-    # def __len__(self):
-    #     return self.length
+    def __len__(self):
+        return self.length
     
     def __getitem__(self, idx):
         real_idx = idx // 2
@@ -47,9 +47,9 @@ def weighted_reconstruction_loss(recon, target):
         device=target.device,
     )[None, :, None, None]
 
-    agent_mask = (target - agent_blue).abs().sum(dim=1, keepdim=True) < 0.03
-    hazard_mask = (target - hazard_red).abs().sum(dim=1, keepdim=True) < 0.03
-    goal_mask = (target - goal_green).abs().sum(dim=1, keepdim=True) < 0.03
+    agent_mask = (target - agent_blue).abs().mean(dim=1, keepdim=True) < 0.03
+    hazard_mask = (target - hazard_red).abs().mean(dim=1, keepdim=True) < 0.03
+    goal_mask = (target - goal_green).abs().mean(dim=1, keepdim=True) < 0.03
 
     
     weights = torch.ones_like(target[:, :1])
@@ -62,7 +62,7 @@ def weighted_reconstruction_loss(recon, target):
 
 def eval(model, loader, device):
     model.eval()
-    total_less = 0.0
+    total_loss = 0.0
     total_items = 0
 
     with torch.no_grad():
