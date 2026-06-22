@@ -15,8 +15,8 @@ class ImageDataset(Dataset):
         self.current_images = data['current_images']
         self.next_images = data['next_images']
 
-    def __len__(self):
-        return self.length
+    # def __len__(self):
+    #     return self.length
     
     def __getitem__(self, idx):
         real_idx = idx // 2
