@@ -14,9 +14,9 @@ def choose_action(env, mode, rng):
     
     path = shortest_path(env.grid, env.agent_pos, env.goal_pos)
 
-    if path is None or len(path) <= 2:
+    if path is None or len(path) < 2:
         return int(rng.integers(0, NUM_ACTIONS))
-    
+        
 
     expert_action = action_between(path[0], path[1])
 

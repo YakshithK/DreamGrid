@@ -9,6 +9,25 @@ from tqdm import tqdm
 
 from models.pixel_model import PixelTransitionModel
 
+def weighted_transition_loss(pred, current, target):
+    agent_blue = torch.tensor(
+        [45 / 255.0, 105 / 255.0, 230 / 255.0],
+        device=target.device,
+    )[None, :, None, None]
+
+    target_agent = (target - agent_blue).abs().sum(dim=1, keepdim=True) < 0.03
+    current_agent = (current - agent_blue).abs().sum(dim=1, keepdim=True) < 0.03
+    changed = (target - current).abs().mean(dim=1, keepdim=True) > 0.01
+
+    weights = torch.ones_like(target[:, :1])
+    weights += target_agent.float() * 30.0
+    weights += changed.float() * 15.0
+    weights += changed.float() * 10.0
+
+    pixel_l1 = (pred - target).abs().mean(dim=1, keepdim=True)
+
+    return (pixel_l1 * weights).sum() / weights.sum()
+
 class TransitionDataset(Dataset):
     def __init__(self, path):
         data =  np.load(path)
@@ -43,7 +62,7 @@ def eval(model, loader, device):
             nxt = nxt.to(device)
 
             pred = model(current, action)
-            loss = F.l1_loss(pred, nxt, reduction="sum")
+            loss = weighted_transition_loss(pred, current, nxt)
 
             total_loss += loss.item()
             total_items += current.shape[0]
@@ -98,7 +117,7 @@ def main():
             nxt = nxt.to(device)
 
             pred = model(current, action)
-            loss = F.l1_loss(pred, nxt)
+            loss = weighted_transition_loss(pred, current, nxt)
 
             optimizer.zero_grad()
             loss.backward()
