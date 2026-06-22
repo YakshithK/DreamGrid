@@ -46,7 +46,7 @@ def main():
             pred = pred[0].permute(1, 2, 0).cpu().numpy()
 
             axes[row, 0].imshow(current)
-            axes[row, 0].set_title("Current\nAction: {ACTION_NAMES[action]}")
+            axes[row, 0].set_title(f"Current\nAction: {ACTION_NAMES[action]}")
 
             axes[row, 1].imshow(true_next)
             axes[row, 1].set_title("True Next")
