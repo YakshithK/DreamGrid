@@ -8,21 +8,22 @@ import torch
 from env.tile_palette import tile_classes_to_image
 from models.tile_autoencoder import TileAutoencoder
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, default='data/test_transitions.npz')
-    parser.add_argument('--checkpoint', type=str, default='checkpoints/tile_autoencoder_latent128.pt')
-    parser.add_argument('--latent_dim', type=int, default=128)
-    parser.add_argument('--out_path', default='outputs/tile_reconstructions.png')
-    parser.add_argument('--num_examples', type=int, default=8)
+    parser.add_argument("--data_path", default="data/test_transitions.npz")
+    parser.add_argument("--checkpoint", default="checkpoints/tile_autoencoder_latent128.pt")
+    parser.add_argument("--latent_dim", type=int, default=128)
+    parser.add_argument("--out_path", default="outputs/tile_reconstructions.png")
+    parser.add_argument("--num_examples", type=int, default=8)
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out_path), exist_ok=True)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     data = np.load(args.data_path)
-    images = data['next_images']
+    images = data["next_images"]
 
     model = TileAutoencoder(latent_dim=args.latent_dim).to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
@@ -39,22 +40,23 @@ def main():
 
             logits, z = model(image_tensor)
             pred_tiles = logits.argmax(dim=1)
-
             recon = tile_classes_to_image(pred_tiles)
+
             recon = recon[0].permute(1, 2, 0).cpu().numpy()
 
             axes[row, 0].imshow(image)
-            axes[row, 0].set_title('Original')
+            axes[row, 0].set_title("Original")
 
             axes[row, 1].imshow(recon)
-            axes[row, 1].set_title(f'Tile Reconstruction\nlatent={z.shape[-1]}')
+            axes[row, 1].set_title(f"Tile recon\nlatent={z.shape[-1]}")
 
             for col in range(2):
-                axes[row, col].axis('off')
+                axes[row, col].axis("off")
 
     plt.tight_layout()
     plt.savefig(args.out_path, dpi=160)
-    print(f"Saved reconstruction visualization to {args.out_path}")
+    print(f"Saved visualization to {args.out_path}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
