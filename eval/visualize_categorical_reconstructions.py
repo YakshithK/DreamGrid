@@ -12,7 +12,7 @@ def main():
     parser.add_argument('--data_path', type=str, default='data/test_transitions.npz')
     parser.add_argument('--checkpoint', type=str, default='checkpoints/autoencoder_latent64.pt')
     parser.add_argument('--latent_dim', type=int, default=64)
-    parser.add_argument('--out_path', default='outputs/reconstructions.png')
+    parser.add_argument('--out_path', default='outputs/categorical_reconstructions.png')
     parser.add_argument('--num_examples', type=int, default=8)
     args = parser.parse_args()
 
