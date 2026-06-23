@@ -7,7 +7,8 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from env.constants import GRID_SIZE
-from models.autoencoder import ConvAutoencoder, CategoricalAutoencoder
+from models.autoencoder import ConvAutoencoder
+from models.categorical_autoencoder import CategoricalAutoencoder
 
 class PositionProbeDataset(Dataset):
     def __init__(self, path):
