@@ -1,0 +1,40 @@
+Probe epoch 1: 100% 391/391 [00:04<00:00, 87.01it/s]
+Epoch 1: Test Accuracy: 0.8554
+Probe epoch 2: 100% 391/391 [00:04<00:00, 80.78it/s]
+Epoch 2: Test Accuracy: 0.9088
+Probe epoch 3: 100% 391/391 [00:04<00:00, 91.58it/s]
+Epoch 3: Test Accuracy: 0.9198
+Probe epoch 4: 100% 391/391 [00:05<00:00, 77.74it/s]
+Epoch 4: Test Accuracy: 0.9308
+Probe epoch 5: 100% 391/391 [00:04<00:00, 83.02it/s]
+Epoch 5: Test Accuracy: 0.9262
+Probe epoch 6: 100% 391/391 [00:04<00:00, 84.45it/s]
+Epoch 6: Test Accuracy: 0.9326
+Probe epoch 7: 100% 391/391 [00:04<00:00, 82.31it/s]
+Epoch 7: Test Accuracy: 0.9510
+Probe epoch 8: 100% 391/391 [00:04<00:00, 90.95it/s]
+Epoch 8: Test Accuracy: 0.9522
+Probe epoch 9: 100% 391/391 [00:05<00:00, 77.73it/s]
+Epoch 9: Test Accuracy: 0.9494
+Probe epoch 10: 100% 391/391 [00:04<00:00, 94.96it/s]
+Epoch 10: Test Accuracy: 0.9498
+Probe epoch 11: 100% 391/391 [00:05<00:00, 76.11it/s]
+Epoch 11: Test Accuracy: 0.9518
+Probe epoch 12: 100% 391/391 [00:04<00:00, 89.62it/s]
+Epoch 12: Test Accuracy: 0.9546
+Probe epoch 13: 100% 391/391 [00:04<00:00, 87.38it/s]
+Epoch 13: Test Accuracy: 0.9514
+Probe epoch 14: 100% 391/391 [00:04<00:00, 80.23it/s]
+Epoch 14: Test Accuracy: 0.9476
+Probe epoch 15: 100% 391/391 [00:04<00:00, 85.88it/s]
+Epoch 15: Test Accuracy: 0.9480
+Probe epoch 16: 100% 391/391 [00:05<00:00, 77.04it/s]
+Epoch 16: Test Accuracy: 0.9542
+Probe epoch 17: 100% 391/391 [00:04<00:00, 86.93it/s]
+Epoch 17: Test Accuracy: 0.9534
+Probe epoch 18: 100% 391/391 [00:05<00:00, 76.64it/s]
+Epoch 18: Test Accuracy: 0.9542
+Probe epoch 19: 100% 391/391 [00:04<00:00, 86.04it/s]
+Epoch 19: Test Accuracy: 0.9454
+Probe epoch 20: 100% 391/391 [00:04<00:00, 89.22it/s]
+Epoch 20: Test Accuracy: 0.9462
