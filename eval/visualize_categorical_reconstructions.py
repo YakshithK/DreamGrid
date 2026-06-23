@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from models.categorical_autoencoder import CategoricalAutoencoder
+from env.palette import palette_indices_to_rgb
 
 def main():
     parser = argparse.ArgumentParser()
@@ -38,7 +39,7 @@ def main():
 
             logits, z = model(image_tensor)
             pred_classes = logits.argmax(dim=1)
-            recon_rgb = model.palette_indices_to_rgb(pred_classes)
+            recon_rgb = palette_indices_to_rgb(pred_classes)
             recon = recon_rgb[0].permute(1, 2, 0).cpu().numpy()
 
             axes[row, 0].imshow(image)
