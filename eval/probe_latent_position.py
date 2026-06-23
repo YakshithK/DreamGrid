@@ -9,6 +9,7 @@ from tqdm import tqdm
 from env.constants import GRID_SIZE
 from models.autoencoder import ConvAutoencoder
 from models.categorical_autoencoder import CategoricalAutoencoder
+from models.tile_autoencoder import TileAutoencoder
 
 class PositionProbeDataset(Dataset):
     def __init__(self, path):
@@ -76,7 +77,7 @@ def main():
     parser.add_argument('--train_path', type=str, default='data/train_transitions.npz')
     parser.add_argument('--test_path', type=str, default='data/test_transitions.npz')
     parser.add_argument('--latent_dim', type=int, default=64)
-    parser.add_argument('--checkpoint', type=str, default='checkpoints/categorical_autoencoder_latent64.pt')
+    parser.add_argument('--checkpoint', type=str, default='checkpoints/tile_autoencoder_latent64.pt')
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=128)
     args = parser.parse_args()
@@ -85,7 +86,7 @@ def main():
 
     # autoencoder = ConvAutoencoder(latent_dim=args.latent_dim).to(device)
     
-    autoencoder = CategoricalAutoencoder(latent_dim=args.latent_dim).to(device)
+    autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
     autoencoder.load_state_dict(torch.load(args.checkpoint, map_location=device))
     autoencoder.eval()
 
