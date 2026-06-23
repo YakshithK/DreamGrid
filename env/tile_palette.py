@@ -45,15 +45,15 @@ def image_to_tile_classes(image):
 def tile_classes_to_image(tile_classes):
     """
     convert 10x10 visual tile classes into rendered RGB images
-    
+
     tile_classes: [B, 10, 10], values in class IDs
     returns: [B, 3, 80, 80], values in [0, 1]
-    
     """
-
     palette = PALETTE_RGB.to(tile_classes.device)
 
-    tile_rgb = palette[tile_classes]
-    image = tile_rgb.repeat_interleave(TILE_SIZE, dim=-2).repeat_interleave(TILE_SIZE, dim=-1)
+    tile_rgb = palette[tile_classes]  # [B, 10, 10, 3]
 
-    return image.permute(0, 3, 1, 2)
+    image = tile_rgb.repeat_interleave(TILE_SIZE, dim=1)  # [B, 80, 10, 3]
+    image = image.repeat_interleave(TILE_SIZE, dim=2)     # [B, 80, 80, 3]
+
+    return image.permute(0, 3, 1, 2)  # [B, 3, 80, 80]
