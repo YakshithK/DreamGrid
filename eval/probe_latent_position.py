@@ -76,7 +76,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_path', type=str, default='data/train_transitions.npz')
     parser.add_argument('--test_path', type=str, default='data/test_transitions.npz')
-    parser.add_argument('--latent_dim', type=int, default=64)
+    parser.add_argument('--latent_dim', type=int, default=128)
     parser.add_argument('--checkpoint', type=str, default='checkpoints/tile_autoencoder_latent128.pt')
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=128)
