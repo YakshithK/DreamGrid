@@ -7,7 +7,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from env.constants import GRID_SIZE
-from models.autoencoder import ConvAutoencoder
+from models.autoencoder import ConvAutoencoder, CategoricalAutoencoder
 
 class PositionProbeDataset(Dataset):
     def __init__(self, path):
@@ -82,7 +82,9 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    autoencoder = ConvAutoencoder(latent_dim=args.latent_dim).to(device)
+    # autoencoder = ConvAutoencoder(latent_dim=args.latent_dim).to(device)
+    
+    autoencoder = CategoricalAutoencoder(latent_dim=args.latent_dim).to(device)
     autoencoder.load_state_dict(torch.load(args.checkpoint, map_location=device))
     autoencoder.eval()
 
