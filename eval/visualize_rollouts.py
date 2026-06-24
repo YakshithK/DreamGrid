@@ -12,7 +12,7 @@ from models.tile_autoencoder import TileAutoencoder
 
 
 def image_for_plot(tensor):
-    return tensor.permute(1, 2, 0).cpu().numpy()
+    return tensor.permute(1, 2, 0).detach().cpu().numpy()
 
 
 def main():
@@ -50,12 +50,12 @@ def main():
     with torch.no_grad():
         rollout = rollout_model(autoencoder, dynamics, start_image, actions)
 
-    pred_images = rollout["predicted_images"]
+    pred_images = rollout["pred_images"]
 
     rows = args.num_examples * 2
     cols = args.horizon + 1
 
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 2.2, rows * 2.2))
+    fig, axes = plt.subplots(rows, cols, figsize=(2.2 * cols, 2.2 * rows))
 
     for ex in range(args.num_examples):
         real_row = ex * 2
@@ -68,17 +68,17 @@ def main():
 
         for t in range(args.horizon):
             axes[real_row, t + 1].imshow(image_for_plot(true_images[ex, t]))
-            axes[real_row, t + 1].set_title(f"True t={t + 1}")
+            axes[real_row, t + 1].set_title(f"Real t+{t+1}")
 
             axes[pred_row, t + 1].imshow(image_for_plot(pred_images[ex, t]))
-            axes[pred_row, t + 1].set_title(f"Pred t={t + 1}")
-        
+            axes[pred_row, t + 1].set_title(f"Imagined t+{t+1}")
+
         for c in range(cols):
             axes[real_row, c].axis("off")
             axes[pred_row, c].axis("off")
 
     plt.tight_layout()
-    plt.savefig(args.out_path)
+    plt.savefig(args.out_path, dpi=160)
     print(f"Saved rollout visualization to {args.out_path}")
 
 
