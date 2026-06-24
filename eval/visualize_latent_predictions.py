@@ -19,7 +19,7 @@ def decode_to_rgb(autoencoder, z):
     return rgb
 
 
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
     """
     tile_classes: [B, 10, 10]
     returns: [B, 5, 10, 10]
@@ -29,7 +29,11 @@ def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
 
     onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
     onehot = onehot.permute(0, 3, 1, 2)
-    return onehot * strength
+
+    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
+    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
+
+    return onehot * strengths[:, None, :, :]
 
 
 def build_copy_residual_tile_logits(outputs, current_image):
@@ -88,7 +92,7 @@ def main():
             pred_logits = build_copy_residual_tile_logits(outputs, current_tensor)
             pred_tiles = pred_logits.argmax(dim=1)
             pred_rgb = tile_classes_to_image(pred_tiles)
-            
+
             pred = pred_rgb[0].permute(1, 2, 0).cpu().numpy()
 
             pred_reward = outputs["reward"].item()

@@ -1,5 +1,7 @@
-tile accuracy: 0.8668
-important tile accuracy: 0.7960
-reward MAE: 0.8513
-done accuracy: 0.9300
-collision accuracy: 0.9240
+tile accuracy: 0.9936
+important tile accuracy: 0.9923
+reward MAE: 0.8648
+done accuracy: 0.9186
+collision accuracy: 0.9192
+static important tile accuracy: 0.9968
+changed tile accuracy: 0.8146

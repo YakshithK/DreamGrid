@@ -38,7 +38,7 @@ class TransitionDataset(Dataset):
         return current, action, nxt, reward, done, collision
 
 
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
     """
     tile_classes: [B, 10, 10]
     returns: [B, 5, 10, 10]
@@ -48,7 +48,11 @@ def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
 
     onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
     onehot = onehot.permute(0, 3, 1, 2)
-    return onehot * strength
+
+    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
+    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
+
+    return onehot * strengths[:, None, :, :]
 
 
 def build_copy_residual_tile_logits(outputs, current_image):
@@ -119,7 +123,7 @@ def main():
 
             current_tiles = image_to_tile_classes(current)
 
-            static_important = (current_tiles != 0) & (true_tiles != 0)
+            static_important = (current_tiles == true_tiles) & (true_tiles != 0)
             changed = current_tiles != true_tiles
 
             static_important_correct += ((pred_tiles == true_tiles) & static_important).sum().item()

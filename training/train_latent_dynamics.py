@@ -47,7 +47,7 @@ def encode_images(autoencoder, images):
     return z
 
 
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
     """
     tile_classes: [B, 10, 10]
     returns: [B, 5, 10, 10]
@@ -57,7 +57,11 @@ def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
 
     onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
     onehot = onehot.permute(0, 3, 1, 2)
-    return onehot * strength
+
+    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
+    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
+
+    return onehot * strengths[:, None, :, :]
 
 
 def build_copy_residual_tile_logits(outputs, current_image):
@@ -86,8 +90,11 @@ def compute_loss(autoencoder, outputs, current_image, target_image, target_z, re
     static_important = (current_tiles == target_tiles) & (target_tiles != 0)
     changed = current_tiles != target_tiles
 
+    agent_changed = changed & ((current_tiles == 4) | (target_tiles == 4))
+
     tile_weights += static_important.float() * 30.0
     tile_weights += changed.float() * 20.0
+    tile_weights += agent_changed.float() * 40.0
 
     tile_loss = (per_tile_ce * tile_weights).sum() / tile_weights.sum()
 
