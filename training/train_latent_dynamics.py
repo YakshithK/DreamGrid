@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+from env.tile_palette import image_to_tile_classes
 from models.latent_dynamics import LatentDynamicsModel
 from models.tile_autoencoder import TileAutoencoder
 
@@ -45,8 +46,28 @@ def encode_images(autoencoder, images):
         z = autoencoder.encode(images)
     return z
 
-def compute_loss(outputs, target_z, reward, done, collision):
+def compute_loss(autoencoder, outputs, current_image, target_image, target_z, reward, done, collision):
     latent_loss = F.mse_loss(outputs["next_z"], target_z)
+
+    pred_tile_logits = autoencoder.decode_tile_logits(outputs["next_z"])
+    current_tiles = image_to_tile_classes(current_image)
+    target_tiles = image_to_tile_classes(target_image)
+
+    per_tile_ce = F.cross_entropy(pred_tile_logits, target_tiles, reduction="none")
+
+    class_weights = torch.tensor(
+        [1.0, 5.0, 15.0, 15.0, 25.0],
+        device=current_image.device,
+    )
+
+    tile_weights = class_weights[target_tiles]
+
+    static_mask = current_tiles == target_tiles
+    static_important_mask = static_mask & (target_tiles != 0)
+
+    tile_weights += static_important_mask.float() * 20.0
+
+    tile_loss = (per_tile_ce * tile_weights).sum() / tile_weights.sum()
 
     reward_loss = F.smooth_l1_loss(outputs["reward"], reward)
 
@@ -60,18 +81,24 @@ def compute_loss(outputs, target_z, reward, done, collision):
         collision
     )
 
+    delta_reg = outputs["delta_z"].pow(2).mean()
+
     total = (
-        latent_loss
-        + 0.5 * reward_loss
-        + 0.5 * done_loss
+        0.25 * latent_loss
+        + 2.0 * tile_loss
+        + 0.25 * reward_loss
+        + 0.25 * done_loss
         + 0.5 * collision_loss
+        + 0.01 * delta_reg
     )
 
     return total, {
         "latent_loss": latent_loss.item(),
+        "tile_loss": tile_loss.item(),
         "reward_loss": reward_loss.item(),
         "done_loss": done_loss.item(),
-        "collision_loss": collision_loss.item()
+        "collision_loss": collision_loss.item(),
+        "delta_reg": delta_reg.item(),
     }
 
 def evaluate(autoencoder, dynamics, loader, device):
@@ -100,13 +127,22 @@ def evaluate(autoencoder, dynamics, loader, device):
             target_z = autoencoder.encode(nxt)
 
             outputs = dynamics(z, action)
-            loss, _ = compute_loss(outputs, target_z, reward, done, collision)
+            loss, _ = compute_loss(
+                autoencoder,
+                outputs,
+                current,
+                nxt,
+                target_z,
+                reward,
+                done,
+                collision
+            )
 
             done_pred = torch.sigmoid(outputs["done_logit"]) > 0.5
             collision_pred = torch.sigmoid(outputs["collision_logit"]) > 0.5
 
             done_correct += (done_pred.float() == done).sum().item()
-            collision_correct = (collision_pred.float() == collision).sum().item()
+            collision_correct += (collision_pred.float() == collision).sum().item()
 
             total_binary += done.shape[0]
 
@@ -143,7 +179,7 @@ def main():
 
     autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
     autoencoder.load_state_dict(torch.load(args.autoencoder_checkpoint, map_location=device))
-    autoencoder.load_state_dict
+    autoencoder.eval()
 
     for param in autoencoder.parameters():
         param.requires_grad = False
@@ -174,9 +210,11 @@ def main():
         total_items = 0
         loss_parts = {
             "latent_loss": 0.0,
+            "tile_loss": 0.0,
             "reward_loss": 0.0,
             "done_loss": 0.0,
-            "collision_loss": 0.0
+            "collision_loss": 0.0,
+            "delta_reg": 0.0,
         }
 
         for current, action, nxt, reward, done, collision in tqdm(train_loader, desc=f"Epoch {epoch}"):
@@ -192,7 +230,16 @@ def main():
 
             outputs = dynamics(z, action)
 
-            loss, parts = compute_loss(outputs, target_z, reward, done, collision)
+            loss, parts = compute_loss(
+                autoencoder,
+                outputs,
+                current,
+                nxt,
+                target_z,
+                reward,
+                done,
+                collision
+            )
 
             optimizer.zero_grad()
             loss.backward()
@@ -214,9 +261,11 @@ def main():
             f"Epoch {epoch}: "
             f"train_loss={train_loss:.6f}, "
             f"latent={train_parts['latent_loss']:.6f}, "
+            f"tile={train_parts['tile_loss']:.6f}, "
             f"reward={train_parts['reward_loss']:.6f}, "
             f"done={train_parts['done_loss']:.6f}, "
             f"collision={train_parts['collision_loss']:.6f}, "
+            f"delta={train_parts['delta_reg']:.6f}, "
             f"val_loss={val_metrics['loss']:.6f}, "
             f"done_acc={val_metrics['done_acc']:.4f}, "
             f"collision_acc={val_metrics['collision_acc']:.4f}, "

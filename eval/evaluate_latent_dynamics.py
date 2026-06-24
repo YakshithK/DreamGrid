@@ -73,6 +73,11 @@ def main():
     done_correct = 0
     collision_correct = 0
 
+    static_important_correct = 0
+    static_important_total = 0
+    changed_correct = 0
+    changed_total = 0
+
     with torch.no_grad():
         for current, action, nxt, reward, done, collision in loader:
             current = current.to(device)
@@ -89,6 +94,17 @@ def main():
             pred_logits = autoencoder.decode_tile_logits(outputs["next_z"])
             pred_tiles = pred_logits.argmax(dim=1)
             true_tiles = image_to_tile_classes(nxt)
+
+            current_tiles = image_to_tile_classes(current)
+
+            static_important = (current_tiles != 0) & (true_tiles != 0)
+            changed = current_tiles != true_tiles
+
+            static_important_correct += ((pred_tiles == true_tiles) & static_important).sum().item()
+            static_important_total += static_important.sum().item()
+
+            changed_correct += ((pred_tiles == true_tiles) & changed).sum().item()
+            changed_total += changed.sum().item()
 
             tile_correct += (pred_tiles == true_tiles).sum().item()
             tile_total += true_tiles.numel()
@@ -112,6 +128,8 @@ def main():
     print(f"reward MAE: {reward_abs_error / total:.4f}")
     print(f"done accuracy: {done_correct / total:.4f}")
     print(f"collision accuracy: {collision_correct / total:.4f}")
+    print(f"static important tile accuracy: {static_important_correct / max(static_important_total, 1):.4f}")
+    print(f"changed tile accuracy: {changed_correct / max(changed_total, 1):.4f}")
 
 if __name__ == "__main__":
     main()
