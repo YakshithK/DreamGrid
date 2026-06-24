@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from env.constants import NUM_ACTIONS
 
+
 class LatentDynamicsModel(nn.Module):
     def __init__(self, latent_dim=128, hidden_dim=256):
         super().__init__()
@@ -16,8 +17,8 @@ class LatentDynamicsModel(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, latent_dim),
-            nn.ReLU()
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
         )
 
         self.delta_head = nn.Linear(hidden_dim, latent_dim)
@@ -26,7 +27,7 @@ class LatentDynamicsModel(nn.Module):
         self.collision_head = nn.Linear(hidden_dim, 1)
 
     def forward(self, z, action):
-        action_onehot = F.one_hot(action, num_classes=NUM_ACTIONS).float()
+        action_onehot = F.one_hot(action, NUM_ACTIONS).float()
         x = torch.cat([z, action_onehot], dim=1)
 
         h = self.trunk(x)
@@ -43,5 +44,5 @@ class LatentDynamicsModel(nn.Module):
             "delta_z": delta_z,
             "reward": reward,
             "done_logit": done_logit,
-            "collision_logit": collision_logit
+            "collision_logit": collision_logit,
         }
