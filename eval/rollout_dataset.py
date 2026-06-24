@@ -72,7 +72,7 @@ class RolloutDataset(Dataset):
         return {
             "start_image": start_image,
             "actions": torch.tensor(actions, dtype=torch.long),
-            "true_next_images": torch.stack(true_imgs, dim=0),
+            "true_images": torch.stack(true_imgs, dim=0),
             "rewards": torch.tensor(rewards, dtype=torch.float32),
             "dones": torch.tensor(dones, dtype=torch.float32),
             "collisions": torch.tensor(collisions, dtype=torch.float32)

@@ -13,7 +13,7 @@ from models.tile_autoencoder import TileAutoencoder
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", default="data/test_transitions.npz")
-    parser.add_argument("--autoencoder_checkpoint", default="checkpoints/tile_auto")
+    parser.add_argument("--autoencoder_checkpoint", default="checkpoints/tile_autoencoder_latent128.pt")
     parser.add_argument("--dynamics_checkpoint", default="checkpoints/latent_dynamics_latent128.pt")
     parser.add_argument("--latent_dim", type=int, default=128)
     parser.add_argument("--horizon", type=int, default=5)
