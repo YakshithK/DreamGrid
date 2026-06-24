@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
 
 from env.tile_palette import image_to_tile_classes
 from models.latent_dynamics import LatentDynamicsModel
@@ -35,6 +36,27 @@ class TransitionDataset(Dataset):
         collision = torch.tensor(self.collisions[idx], dtype=torch.float32)
 
         return current, action, nxt, reward, done, collision
+
+
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+    """
+    tile_classes: [B, 10, 10]
+    returns: [B, 5, 10, 10]
+
+    creates logits saying "predict the current tile unless the model has a reason to change it"
+    """
+
+    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
+    onehot = onehot.permute(0, 3, 1, 2)
+    return onehot * strength
+
+
+def build_copy_residual_tile_logits(outputs, current_image):
+    current_tiles = image_to_tile_classes(current_image)
+    copy_logits = copy_logits_from_tiles(current_tiles)
+    return copy_logits + outputs["tile_delta_logits"]
+
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -91,7 +113,7 @@ def main():
             z = autoencoder.encode(current)
             outputs = dynamics(z, action)
 
-            pred_logits = autoencoder.decode_tile_logits(outputs["next_z"])
+            pred_logits = build_copy_residual_tile_logits(outputs, current)
             pred_tiles = pred_logits.argmax(dim=1)
             true_tiles = image_to_tile_classes(nxt)
 

@@ -4,9 +4,10 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from env.constants import ACTION_NAMES
-from env.tile_palette import tile_classes_to_image
+from env.tile_palette import tile_classes_to_image, image_to_tile_classes
 from models.latent_dynamics import LatentDynamicsModel
 from models.tile_autoencoder import TileAutoencoder
 
@@ -16,6 +17,26 @@ def decode_to_rgb(autoencoder, z):
     tiles = logits.argmax(dim=1)
     rgb = tile_classes_to_image(tiles)
     return rgb
+
+
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+    """
+    tile_classes: [B, 10, 10]
+    returns: [B, 5, 10, 10]
+
+    creates logits saying "predict the current tile unless the model has a reason to change it"
+    """
+
+    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
+    onehot = onehot.permute(0, 3, 1, 2)
+    return onehot * strength
+
+
+def build_copy_residual_tile_logits(outputs, current_image):
+    current_tiles = image_to_tile_classes(current_image)
+    copy_logits = copy_logits_from_tiles(current_tiles)
+    return copy_logits + outputs["tile_delta_logits"]
+
 
 
 def main():
@@ -64,7 +85,10 @@ def main():
             z = autoencoder.encode(current_tensor)
             outputs = dynamics(z, action_tensor)
 
-            pred_rgb = decode_to_rgb(autoencoder, outputs["next_z"])
+            pred_logits = build_copy_residual_tile_logits(outputs, current_tensor)
+            pred_tiles = pred_logits.argmax(dim=1)
+            pred_rgb = tile_classes_to_image(pred_tiles)
+            
             pred = pred_rgb[0].permute(1, 2, 0).cpu().numpy()
 
             pred_reward = outputs["reward"].item()

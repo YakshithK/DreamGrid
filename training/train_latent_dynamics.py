@@ -46,12 +46,33 @@ def encode_images(autoencoder, images):
         z = autoencoder.encode(images)
     return z
 
+
+def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0):
+    """
+    tile_classes: [B, 10, 10]
+    returns: [B, 5, 10, 10]
+
+    creates logits saying "predict the current tile unless the model has a reason to change it"
+    """
+
+    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
+    onehot = onehot.permute(0, 3, 1, 2)
+    return onehot * strength
+
+
+def build_copy_residual_tile_logits(outputs, current_image):
+    current_tiles = image_to_tile_classes(current_image)
+    copy_logits = copy_logits_from_tiles(current_tiles)
+    return copy_logits + outputs["tile_delta_logits"]
+
+
 def compute_loss(autoencoder, outputs, current_image, target_image, target_z, reward, done, collision):
     latent_loss = F.mse_loss(outputs["next_z"], target_z)
 
-    pred_tile_logits = autoencoder.decode_tile_logits(outputs["next_z"])
     current_tiles = image_to_tile_classes(current_image)
     target_tiles = image_to_tile_classes(target_image)
+
+    pred_tile_logits = build_copy_residual_tile_logits(outputs, current_image)
 
     per_tile_ce = F.cross_entropy(pred_tile_logits, target_tiles, reduction="none")
 
@@ -62,12 +83,23 @@ def compute_loss(autoencoder, outputs, current_image, target_image, target_z, re
 
     tile_weights = class_weights[target_tiles]
 
-    static_mask = current_tiles == target_tiles
-    static_important_mask = static_mask & (target_tiles != 0)
+    static_important = (current_tiles == target_tiles) & (target_tiles != 0)
+    changed = current_tiles != target_tiles
 
-    tile_weights += static_important_mask.float() * 20.0
+    tile_weights += static_important.float() * 30.0
+    tile_weights += changed.float() * 20.0
 
     tile_loss = (per_tile_ce * tile_weights).sum() / tile_weights.sum()
+
+    static_residual_penalty = (
+        outputs["tile_delta_logits"]
+        .permute(0, 2, 3, 1)[static_important]
+        .pow(2)
+        .mean()
+    )
+
+    if torch.isnan(static_residual_penalty):
+        static_residual_penalty = torch.tensor(0.0, device=target_image.device)
 
     reward_loss = F.smooth_l1_loss(outputs["reward"], reward)
 
@@ -84,12 +116,13 @@ def compute_loss(autoencoder, outputs, current_image, target_image, target_z, re
     delta_reg = outputs["delta_z"].pow(2).mean()
 
     total = (
-        0.25 * latent_loss
-        + 2.0 * tile_loss
+        0.10 * latent_loss
+        + 4.00 * tile_loss
         + 0.25 * reward_loss
         + 0.25 * done_loss
-        + 0.5 * collision_loss
+        + 0.50 * collision_loss
         + 0.01 * delta_reg
+        + 0.05 * static_residual_penalty
     )
 
     return total, {
@@ -99,6 +132,7 @@ def compute_loss(autoencoder, outputs, current_image, target_image, target_z, re
         "done_loss": done_loss.item(),
         "collision_loss": collision_loss.item(),
         "delta_reg": delta_reg.item(),
+        "static_residual_penalty": static_residual_penalty.item(),
     }
 
 def evaluate(autoencoder, dynamics, loader, device):
@@ -215,6 +249,7 @@ def main():
             "done_loss": 0.0,
             "collision_loss": 0.0,
             "delta_reg": 0.0,
+            "static_residual_penalty": 0.0,
         }
 
         for current, action, nxt, reward, done, collision in tqdm(train_loader, desc=f"Epoch {epoch}"):
@@ -266,6 +301,7 @@ def main():
             f"done={train_parts['done_loss']:.6f}, "
             f"collision={train_parts['collision_loss']:.6f}, "
             f"delta={train_parts['delta_reg']:.6f}, "
+            f"static_resid={train_parts['static_residual_penalty']:.6f}, "
             f"val_loss={val_metrics['loss']:.6f}, "
             f"done_acc={val_metrics['done_acc']:.4f}, "
             f"collision_acc={val_metrics['collision_acc']:.4f}, "
