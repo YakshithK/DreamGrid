@@ -115,7 +115,7 @@ def run_episode(env, policy, seed, max_steps=40):
     return {
         "success": success,
         "hazard_death": hazard_death,
-        "timeout": timeout,
+        "timeout": True,
         "steps": step + 1,
         "total_reward": total_reward,
         "collisions": collisions,
