@@ -12,8 +12,8 @@ class LatentMPCPlanner:
             horizon=2,
             num_candidates=128,
             gamma=0.95,
-            collision_penalty=0.5,
-            invalid_agent_penalty=0.25,
+            collision_penalty=3.0,
+            invalid_agent_penalty=2.0,
     ):
         self.autoencoder = autoencoder
         self.dynamics = dynamics
