@@ -109,7 +109,7 @@ class LatentMPCPlanner:
         scores = (discounts * per_step_score).sum(dim=1)
         return scores
     
-    def visual_goal_progress_score(pred_tiles):
+    def visual_goal_progress_score(self, pred_tiles):
         """
         pred_tiles: [N, H, 10, 10]
 
@@ -153,11 +153,11 @@ class LatentMPCPlanner:
 
         valid = agent_exists & goal_exists
 
-        progres_score = -0.15 * distance
+        progress_score = -0.15 * distance
         progress_score = torch.where(
             valid,
-            progres_score,
-            torch.full_like(progres_score, -5.0)
+            progress_score,
+            torch.full_like(progress_score, -5.0)
         )
 
         reached_goal = valid & (distance == 0)
