@@ -141,7 +141,7 @@ def evaluate_policy(name, policy, num_episodes, seed_offset):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--autoencoder_checkpoint", default="checkpoints/tile_autoencoder_latent128.pt")
-    parser.add_argument("--dynamics_checkpoint", default="checkpoint/latent_dynamics_latent128.pt")
+    parser.add_argument("--dynamics_checkpoint", default="checkpoints/latent_dynamics_latent128.pt")
     parser.add_argument("--latent_dim", type=int, default=128)
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--horizon", type=int, default=2)
