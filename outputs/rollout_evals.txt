@@ -1,0 +1,19 @@
+Evaluating rollouts: 100% 29/29 [00:03<00:00,  8.97it/s]
+Horizon: 5
+t+1: tile_acc=0.9960, important_acc=0.9944, changed_acc=0.9415, single_agent=0.7211, reward_mae=0.2159, done_acc=0.9722, collision_acc=0.9119
+t+2: tile_acc=0.9893, important_acc=0.9789, changed_acc=0.5585, single_agent=0.5700, reward_mae=0.2249, done_acc=0.9397, collision_acc=0.8932
+t+3: tile_acc=0.9865, important_acc=0.9710, changed_acc=0.5197, single_agent=0.4954, reward_mae=0.2237, done_acc=0.9219, collision_acc=0.8795
+t+4: tile_acc=0.9849, important_acc=0.9659, changed_acc=0.4965, single_agent=0.4332, reward_mae=0.2230, done_acc=0.9089, collision_acc=0.8765
+t+5: tile_acc=0.9844, important_acc=0.9631, changed_acc=0.4950, single_agent=0.3827, reward_mae=0.9736, done_acc=0.8511, collision_acc=0.8738
+Evaluating rollouts: 100% 19/19 [00:03<00:00,  4.83it/s]
+Horizon: 10
+t+1: tile_acc=0.9958, important_acc=0.9940, changed_acc=0.9317, single_agent=0.7084, reward_mae=0.2230, done_acc=0.9697, collision_acc=0.9064
+t+2: tile_acc=0.9889, important_acc=0.9781, changed_acc=0.5395, single_agent=0.5605, reward_mae=0.2249, done_acc=0.9452, collision_acc=0.8904
+t+3: tile_acc=0.9865, important_acc=0.9710, changed_acc=0.5215, single_agent=0.4888, reward_mae=0.2245, done_acc=0.9246, collision_acc=0.8740
+t+4: tile_acc=0.9850, important_acc=0.9660, changed_acc=0.4954, single_agent=0.4395, reward_mae=0.2203, done_acc=0.9140, collision_acc=0.8791
+t+5: tile_acc=0.9847, important_acc=0.9638, changed_acc=0.5031, single_agent=0.3902, reward_mae=0.2211, done_acc=0.9077, collision_acc=0.8677
+t+6: tile_acc=0.9845, important_acc=0.9621, changed_acc=0.4905, single_agent=0.3477, reward_mae=0.2266, done_acc=0.8930, collision_acc=0.8765
+t+7: tile_acc=0.9845, important_acc=0.9610, changed_acc=0.4936, single_agent=0.3253, reward_mae=0.2271, done_acc=0.8955, collision_acc=0.8732
+t+8: tile_acc=0.9845, important_acc=0.9601, changed_acc=0.4910, single_agent=0.2954, reward_mae=0.2257, done_acc=0.8896, collision_acc=0.8681
+t+9: tile_acc=0.9847, important_acc=0.9598, changed_acc=0.4972, single_agent=0.2646, reward_mae=0.2311, done_acc=0.8833, collision_acc=0.8534
+t+10: tile_acc=0.9848, important_acc=0.9594, changed_acc=0.4980, single_agent=0.2410, reward_mae=1.1384, done_acc=0.8125, collision_acc=0.8521
