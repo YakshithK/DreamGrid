@@ -151,9 +151,9 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, device=device)
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, device=device, latent_dim=args.latent_dim)
 
-    dynamics = load_latent_dynamics(args.dynamics_checkpoint, device=device)
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, device=device, latent_dim=args.latent_dim)
 
     planner = LatentMPCPlanner(
         autoencoder=autoencoder,
