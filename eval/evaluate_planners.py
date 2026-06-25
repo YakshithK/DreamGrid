@@ -19,11 +19,11 @@ class RandomPolicy:
 class GreedyPolicy:
     def act(self, obs, env):
         best_action = 4
-        best_dist = manhattan(env.agent_post, env.goal_pos)
+        best_dist = manhattan(env.agent_pos, env.goal_pos)
 
         for action, delta in env_action_deltas().items():
-            nr = env.agent_post[0] + delta[0]
-            nc = env.agent_post[1] + delta[1]
+            nr = env.agent_pos[0] + delta[0]
+            nc = env.agent_pos[1] + delta[1]
             pos = (nr, nc)
 
             if not env._in_bounds(pos):
@@ -42,7 +42,7 @@ class GreedyPolicy:
     
 class OracleShortestPathPolicy:
     def act(self, obs, env):
-        path = shortest_path(env.agent_post, env.goal_pos, env.grid)
+        path = shortest_path(env.agent_pos, env.goal_pos, env.grid)
         
         if path is None or len(path) < 2:
             return random.randint(0, NUM_ACTIONS - 1), {"path_found": False}
