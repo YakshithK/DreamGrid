@@ -20,7 +20,6 @@ def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_stre
 
     return onehot * strengths[:, None, :, :]
 
-
 def build_copy_residual_tile_logits(outputs, current_tiles):
     copy_logits = copy_logits_from_tiles(current_tiles)
     return copy_logits + outputs["tile_delta_logits"]
