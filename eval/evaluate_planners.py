@@ -156,8 +156,8 @@ def main():
     parser.add_argument("--dynamics_checkpoint", default="checkpoints/latent_dynamics_latent128.pt")
     parser.add_argument("--latent_dim", type=int, default=128)
     parser.add_argument("--episodes", type=int, default=100)
-    parser.add_argument("--horizon", type=int, default=2)
-    parser.add_argument("--candidates", type=int, default=128)
+    parser.add_argument("--horizon", type=int, default=5)
+    parser.add_argument("--candidates", type=int, default=512)
     parser.add_argument("--seed_offset", type=int, default=10000)
     args = parser.parse_args()
 

@@ -77,13 +77,11 @@ class LatentMPCPlanner:
         Scores imagined futures.
 
         rollout["rewards"]: [N, H]
-        rollout["done_probs"]: [N, H]
         rollout["collision_probs"]: [N, H]
         rollout["pred_tiles"]: [N, H, 10, 10]
         """
 
         rewards = rollout["rewards"]
-        done_probs = rollout["done_probs"]
         collision_probs = rollout["collision_probs"]
         pred_tiles = rollout["pred_tiles"]
 
@@ -95,28 +93,74 @@ class LatentMPCPlanner:
             dtype=torch.float32
         )[None, :]
 
-        previous_not_done = 1.0 - done_probs[:, :-1]
-        continuation = torch.cat(
-            [
-                torch.ones(batch_size, 1, device=rewards.device),
-                previous_not_done,
-            ],
-            dim=1
-        )
-
-        continuation = torch.cumprod(continuation, dim=1)
 
         agent_counts = (pred_tiles == 4).sum(dim=(2, 3)).float()
         invalid_agent = (agent_counts != 1).float()
 
-        term_penalty = 2.0 * done_probs
+        visual_progress = self.visual_goal_progress_score(pred_tiles)
 
         per_step_score = (
             rewards
+            + visual_progress
             - self.collision_penalty * collision_probs
             - self.invalid_agent_penalty * invalid_agent
-            - term_penalty
         )
 
-        scores = (discounts * continuation * per_step_score).sum(dim=1)
+        scores = (discounts * per_step_score).sum(dim=1)
         return scores
+    
+    def visual_goal_progress_score(pred_tiles):
+        """
+        pred_tiles: [N, H, 10, 10]
+
+        Returns:
+        progress_score: [N, H]
+
+        This gives the planner dense feedback from imagined visual states:
+        smaller agent-goal distance is better.
+
+        This does nto teach the world model the rules.
+        The world model still predicts future tiles.
+        The planner is just scoring the imagined futures.
+        """
+        batch_size, horizon, height, width = pred_tiles.shape
+        device = pred_tiles.device
+
+        flat = pred_tiles.view(batch_size, horizon, height * width)
+
+        agent_mask = flat == 4
+        goal_mask = flat == 3
+
+        idxs = torch.arange(height * width, device=device)
+
+        row = idxs // width
+        col = idxs % width
+
+        agent_exists = agent_mask.any(dim=2)
+        goal_exists = goal_mask.any(dim=2)
+
+        agent_idx = agent_mask.float().argmax(dim=2)
+        goal_idx = goal_mask.float().argmax(dim=2)
+
+        agent_r = row[agent_idx]
+        agent_c = col[agent_idx]
+
+        goal_r = row[goal_idx]
+        goal_c = col[goal_idx]
+
+        distance = (agent_r - goal_r).abs() + (agent_c - goal_c).abs()
+        distance = distance.float()
+
+        valid = agent_exists & goal_exists
+
+        progres_score = -0.15 * distance
+        progress_score = torch.where(
+            valid,
+            progres_score,
+            torch.full_like(progres_score, -5.0)
+        )
+
+        reached_goal = valid & (distance == 0)
+        progress_score += reached_goal.float() * 10.0
+
+        return progress_score
