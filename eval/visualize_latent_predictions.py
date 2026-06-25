@@ -4,12 +4,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from env.constants import ACTION_NAMES
-from env.tile_palette import tile_classes_to_image, image_to_tile_classes
-from models.latent_dynamics import LatentDynamicsModel
-from models.tile_autoencoder import TileAutoencoder
+from env.tile_palette import tile_classes_to_image
+from world_model.decoder import build_copy_residual_tile_logits_from_image
+from world_model.loading import load_latent_dynamics, load_tile_autoencoder
 
 
 def decode_to_rgb(autoencoder, z):
@@ -17,30 +16,6 @@ def decode_to_rgb(autoencoder, z):
     tiles = logits.argmax(dim=1)
     rgb = tile_classes_to_image(tiles)
     return rgb
-
-
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
-    """
-    tile_classes: [B, 10, 10]
-    returns: [B, 5, 10, 10]
-
-    creates logits saying "predict the current tile unless the model has a reason to change it"
-    """
-
-    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
-    onehot = onehot.permute(0, 3, 1, 2)
-
-    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
-    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
-
-    return onehot * strengths[:, None, :, :]
-
-
-def build_copy_residual_tile_logits(outputs, current_image):
-    current_tiles = image_to_tile_classes(current_image)
-    copy_logits = copy_logits_from_tiles(current_tiles)
-    return copy_logits + outputs["tile_delta_logits"]
-
 
 
 def main():
@@ -65,13 +40,9 @@ def main():
     dones = data["dones"]
     collisions = data["collisions"]
 
-    autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
-    autoencoder.load_state_dict(torch.load(args.autoencoder_checkpoint, map_location=device))
-    autoencoder.eval()
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, args.latent_dim, device)
 
-    dynamics = LatentDynamicsModel(latent_dim=args.latent_dim).to(device)
-    dynamics.load_state_dict(torch.load(args.dynamics_checkpoint, map_location=device))
-    dynamics.eval()
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, args.latent_dim, device)
 
     indices = np.linspace(0, len(actions) - 1, args.num_examples, dtype=int)
 
@@ -89,7 +60,7 @@ def main():
             z = autoencoder.encode(current_tensor)
             outputs = dynamics(z, action_tensor)
 
-            pred_logits = build_copy_residual_tile_logits(outputs, current_tensor)
+            pred_logits = build_copy_residual_tile_logits_from_image(outputs, current_tensor)
             pred_tiles = pred_logits.argmax(dim=1)
             pred_rgb = tile_classes_to_image(pred_tiles)
 

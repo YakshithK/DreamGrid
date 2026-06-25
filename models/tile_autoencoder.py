@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-
 
 class TileAutoencoder(nn.Module):
     def __init__(self, latent_dim=128, num_classes=5):

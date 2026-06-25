@@ -1,13 +1,12 @@
 import argparse
 import os
 
-import numpy as np
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from models.pixel_model import PixelTransitionModel
+from datasets.transitions import PixelTransitionDataset
 
 def weighted_transition_loss(pred, current, target):
     agent_blue = torch.tensor(
@@ -21,36 +20,15 @@ def weighted_transition_loss(pred, current, target):
 
     weights = torch.ones_like(target[:, :1])
     weights += target_agent.float() * 30.0
-    weights += changed.float() * 15.0
+    weights += current_agent.float() * 15.0
     weights += changed.float() * 10.0
 
     pixel_l1 = (pred - target).abs().mean(dim=1, keepdim=True)
 
     return (pixel_l1 * weights).sum() / weights.sum()
 
-class TransitionDataset(Dataset):
-    def __init__(self, path):
-        data =  np.load(path)
-
-        self.current_images = data["current_images"]
-        self.actions = data["actions"]
-        self.next_images = data["next_images"]
-
-    def __len__(self):
-        return len(self.actions)
     
-    def __getitem__(self, idx):
-        current = self.current_images[idx].astype(np.float32) / 255.0
-        nxt = self.next_images[idx].astype(np.float32) / 255.0
-        action = self.actions[idx]
-
-        current = torch.from_numpy(current).permute(2, 0, 1)
-        nxt = torch.from_numpy(nxt).permute(2, 0, 1)
-        action = torch.tensor(action, dtype=torch.long)
-
-        return current, action, nxt
-    
-def eval(model, loader, device):
+def evaluate(model, loader, device):
     model.eval()
     total_loss = 0.0
     total_items = 0
@@ -64,7 +42,7 @@ def eval(model, loader, device):
             pred = model(current, action)
             loss = weighted_transition_loss(pred, current, nxt)
 
-            total_loss += loss.item()
+            total_loss += loss.item() * current.shape[0]
             total_items += current.shape[0]
 
     return total_loss / total_items
@@ -84,8 +62,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    train_dataset = TransitionDataset(args.train_path)
-    val_dataset = TransitionDataset(args.val_path)
+    train_dataset = PixelTransitionDataset(args.train_path)
+    val_dataset = PixelTransitionDataset(args.val_path)
 
     train_loader = DataLoader(
         train_dataset,
@@ -127,7 +105,7 @@ def main():
             train_items += current.shape[0]
 
         avg_train = train_loss / train_items
-        avg_val = eval(model, val_loader, device)
+        avg_val = evaluate(model, val_loader, device)
 
         print(f"Epoch {epoch}: train_l1={avg_train:.6f}, val_l1={avg_val:.6f}")
 

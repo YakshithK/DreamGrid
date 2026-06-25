@@ -5,11 +5,9 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
-from eval.rollout_dataset import RolloutDataset
-from eval.rollout_utils import rollout_model
-from models.latent_dynamics import LatentDynamicsModel
-from models.tile_autoencoder import TileAutoencoder
-
+from datasets.rollouts import RolloutDataset
+from world_model.loading import load_tile_autoencoder, load_latent_dynamics
+from world_model.rollout import rollout_latent_model
 
 def image_for_plot(tensor):
     return tensor.permute(1, 2, 0).detach().cpu().numpy()
@@ -39,16 +37,11 @@ def main():
     actions = batch["actions"].to(device)
     true_images = batch["true_images"].to(device)
 
-    autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
-    autoencoder.load_state_dict(torch.load(args.autoencoder_checkpoint, map_location=device))
-    autoencoder.eval()
-
-    dynamics = LatentDynamicsModel(latent_dim=args.latent_dim).to(device)
-    dynamics.load_state_dict(torch.load(args.dynamics_checkpoint, map_location=device))
-    dynamics.eval()
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, args.latent_dim, device)
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, args.latent_dim, device)
 
     with torch.no_grad():
-        rollout = rollout_model(autoencoder, dynamics, start_image, actions)
+        rollout = rollout_latent_model(autoencoder, dynamics, start_image, actions)
 
     pred_images = rollout["pred_images"]
 

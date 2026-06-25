@@ -1,37 +1,14 @@
 import argparse
 import os
 
-import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from env.palette import rgb_to_palette_indices
 from models.categorical_autoencoder import CategoricalAutoencoder
-
-class ImageDataset(Dataset):
-    def __init__(self, path):
-        data = np.load(path)
-        self.current_images = data['current_images']
-        self.next_images = data['next_images']
-        self.length = len(self.current_images) * 2
-
-    def __len__(self):
-        return self.length
-    
-    def __getitem__(self, idx):
-        real_idx = idx // 2
-        use_next = idx % 2 == 1
-
-        if use_next:
-            image = self.next_images[real_idx]
-        else:
-            image = self.current_images[real_idx]
-
-        image = image.astype(np.float32) / 255.0
-        image = torch.from_numpy(image).permute(2, 0, 1)
-        return image
+from datasets.images import ImageDataset
 
 def reconstruction_loss(logits, target_image):
     target_classes = rgb_to_palette_indices(target_image)
@@ -43,7 +20,7 @@ def reconstruction_loss(logits, target_image):
 
     return F.cross_entropy(logits, target_classes, weight=class_weights)
 
-def eval(model, loader, device):
+def evaluate(model, loader, device):
     model.eval()
     total_loss = 0.0
     total_items = 0
@@ -127,7 +104,7 @@ def main():
             total_items += image.shape[0]
 
         train_loss = total_loss / total_items
-        val_loss, val_pixel_acc = eval(model, val_loader, device)
+        val_loss, val_pixel_acc = evaluate(model, val_loader, device)
 
         print(
             f"Epoch {epoch}: "

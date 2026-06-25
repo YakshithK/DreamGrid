@@ -1,65 +1,13 @@
 import argparse
 
-import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from env.tile_palette import image_to_tile_classes
-from models.latent_dynamics import LatentDynamicsModel
-from models.tile_autoencoder import TileAutoencoder
-
-class TransitionDataset(Dataset):
-    def __init__(self, path):
-        data = np.load(path)
-
-        self.current_images = data["current_images"]
-        self.next_images = data["next_images"]
-        self.actions = data["actions"]
-        self.rewards = data["rewards"]
-        self.dones = data["dones"]
-        self.collisions = data["collisions"]
-
-    def __len__(self):
-        return len(self.actions)
-
-    def __getitem__(self, idx):
-        current = self.current_images[idx].astype(np.float32) / 255.0
-        nxt = self.next_images[idx].astype(np.float32) / 255.0
-
-        current = torch.from_numpy(current).permute(2, 0, 1)
-        nxt = torch.from_numpy(nxt).permute(2, 0, 1)
-
-        action = torch.tensor(self.actions[idx], dtype=torch.long)
-        reward = torch.tensor(self.rewards[idx], dtype=torch.float32)
-        done = torch.tensor(self.dones[idx], dtype=torch.float32)
-        collision = torch.tensor(self.collisions[idx], dtype=torch.float32)
-
-        return current, action, nxt, reward, done, collision
-
-
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
-    """
-    tile_classes: [B, 10, 10]
-    returns: [B, 5, 10, 10]
-
-    creates logits saying "predict the current tile unless the model has a reason to change it"
-    """
-
-    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
-    onehot = onehot.permute(0, 3, 1, 2)
-
-    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
-    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
-
-    return onehot * strengths[:, None, :, :]
-
-
-def build_copy_residual_tile_logits(outputs, current_image):
-    current_tiles = image_to_tile_classes(current_image)
-    copy_logits = copy_logits_from_tiles(current_tiles)
-    return copy_logits + outputs["tile_delta_logits"]
-
+from datasets.transitions import ImageActionTransitionDataset
+from world_model.decoder import copy_logits_from_tiles, build_copy_residual_tile_logits_from_image
+from world_model.loading import load_latent_dynamics, load_tile_autoencoder
 
 
 def main():
@@ -74,18 +22,14 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     loader = DataLoader(
-        TransitionDataset(args.data_path),
+        ImageActionTransitionDataset(args.data_path),
         batch_size=args.batch_size,
         shuffle=False
     )
 
-    autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
-    autoencoder.load_state_dict(torch.load(args.autoencoder_checkpoint, map_location=device))
-    autoencoder.eval()
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, args.latent_dim, device)
 
-    dynamics = LatentDynamicsModel(latent_dim=args.latent_dim).to(device)
-    dynamics.load_state_dict(torch.load(args.dynamics_checkpoint, map_location=device))
-    dynamics.eval()
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, args.latent_dim, device)
 
     total =0
 
@@ -117,7 +61,7 @@ def main():
             z = autoencoder.encode(current)
             outputs = dynamics(z, action)
 
-            pred_logits = build_copy_residual_tile_logits(outputs, current)
+            pred_logits = build_copy_residual_tile_logits_from_image(outputs, current)
             pred_tiles = pred_logits.argmax(dim=1)
             true_tiles = image_to_tile_classes(nxt)
 

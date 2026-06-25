@@ -1,31 +1,14 @@
 import argparse
 import os
 
-import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from env.tile_palette import image_to_tile_classes
 from models.tile_autoencoder import TileAutoencoder
-
-
-class ImageDataset(Dataset):
-    def __init__(self, path):
-        data = np.load(path)
-        self.current_images = data["current_images"]
-        self.next_images = data["next_images"]
-        self.length = len(self.current_images) * 2
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        real_idx = idx // 2
-        image = self.next_images[real_idx] if idx % 2 else self.current_images[real_idx]
-        image = image.astype(np.float32) / 255.0
-        return torch.from_numpy(image).permute(2, 0, 1)
+from datasets.images import ImageDataset
 
 
 def loss_fn(logits, image):

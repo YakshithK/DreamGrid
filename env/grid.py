@@ -1,6 +1,6 @@
 import numpy as np
 
-from env.constants import GRID_SIZE, FLOOR, HAZARD, WALL, GOAL, MAX_STEPS, ACTION_TO_DELTA
+from env.constants import HAZARD, WALL, GOAL, MAX_STEPS, ACTION_TO_DELTA
 from env.generator import generate_map
 from env.render import render_grid
 

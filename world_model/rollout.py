@@ -1,42 +1,20 @@
 import torch
-import torch.nn.functional as F
 
 from env.tile_palette import image_to_tile_classes, tile_classes_to_image
+from world_model.decoder import build_copy_residual_tile_logits
 
 
-def copy_logits_from_tiles(tile_classes, num_classes=5, strength=8.0, agent_strength=0.0):
-    """
-    tile_classes: [B, 10, 10]
-    returns: [B, 5, 10, 10]
-
-    creates logits saying "predict the current tile unless the model has a reason to change it"
-    """
-
-    onehot = F.one_hot(tile_classes, num_classes=num_classes).float()
-    onehot = onehot.permute(0, 3, 1, 2)
-
-    strengths = torch.full_like(tile_classes, strength, dtype=torch.float32)
-    strengths = strengths.masked_fill(tile_classes == 4, agent_strength)
-
-    return onehot * strengths[:, None, :, :]
-
-
-def build_copy_residual_tile_logits(outputs, current_tiles):
-    copy_logits = copy_logits_from_tiles(current_tiles)
-    return copy_logits + outputs["tile_delta_logits"]
-
-
-def rollout_model(autoencoder, dynamics, start_image, actions):
+def rollout_latent_model(autoencoder, dynamics, start_image, actions):
     """
     start_image: [B, 3, 80, 80]
     actions: [B, H]
 
     returns dict with:
-        "predicted_images": [B, H, 3, 80, 80]
-        "predicted_tiles": [B, H, 10, 10]
-        "predicted_rewards": [B, H]
-        "predicted_dones": [B, H]
-        "predicted_collisions": [B, H]
+        "pred_tiles": [B, H, 3, 80, 80]
+        "pred_images": [B, H, 10, 10]
+        "rewards": [B, H]
+        "done_probs": [B, H]
+        "collision_probs": [B, H]
     """
 
     z = autoencoder.encode(start_image)

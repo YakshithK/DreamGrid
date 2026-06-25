@@ -5,10 +5,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from env.tile_palette import image_to_tile_classes
-from eval.rollout_utils import rollout_model
-from eval.rollout_dataset import RolloutDataset
-from models.latent_dynamics import LatentDynamicsModel
-from models.tile_autoencoder import TileAutoencoder
+from world_model.loading import load_latent_dynamics
+from world_model.loading import load_tile_autoencoder
+from world_model.rollout import rollout_latent_model
+from datasets.rollouts import RolloutDataset
 
 def main():
     parser = argparse.ArgumentParser()
@@ -25,13 +25,9 @@ def main():
     dataset = RolloutDataset(args.data_path, horizon=args.horizon)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
 
-    autoencoder = TileAutoencoder(latent_dim=args.latent_dim).to(device)
-    autoencoder.load_state_dict(torch.load(args.autoencoder_checkpoint, map_location=device))
-    autoencoder.eval()
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, args.latent_dim, device)
 
-    dynamics = LatentDynamicsModel(latent_dim=args.latent_dim).to(device)
-    dynamics.load_state_dict(torch.load(args.dynamics_checkpoint, map_location=device))
-    dynamics.eval()
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, args.latent_dim, device)
 
     tile_correct = torch.zeros(args.horizon, device=device)
     tile_total = torch.zeros(args.horizon, device=device)
@@ -58,7 +54,7 @@ def main():
             dones = batch["dones"].to(device)
             collisions = batch["collisions"].to(device)
 
-            rollout = rollout_model(autoencoder, dynamics, start_image, actions)
+            rollout = rollout_latent_model(autoencoder, dynamics, start_image, actions)
 
             pred_tiles = rollout["pred_tiles"]
             pred_rewards = rollout["rewards"]
