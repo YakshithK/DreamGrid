@@ -35,7 +35,7 @@ class LatentMPCPlanner:
         self.autoencoder.eval()
         self.dynamics.eval()
 
-        obs = torch.as_tensor(obs_image, device=self.device, dtype=torch.float32, device=self.device)
+        obs = torch.as_tensor(obs_image, device=self.device, dtype=torch.float32)
 
         if obs.max() > 1.0:
             obs = obs / 255.0
