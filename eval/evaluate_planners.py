@@ -60,8 +60,8 @@ class LearnedMPCPolicy:
     
 
 def env_action_deltas():
-    from env.constants import ACTION_DELTAS
-    return ACTION_DELTAS
+    from env.constants import ACTION_TO_DELTA
+    return ACTION_TO_DELTA
 
 def manhattan(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
