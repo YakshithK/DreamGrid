@@ -4,7 +4,7 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-import torch.utils.data as Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from env.tile_palette import image_to_tile_classes
@@ -171,7 +171,7 @@ def main():
         num_workers=2
     )
 
-    model = TileDynamicsModel(latent_dim=128).to(device)
+    model = TileDynamicsModel().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     best_score = -1.0
@@ -217,9 +217,9 @@ def main():
             f"collision_acc={metrics['collision_acc']:.4f}"
         )
 
-        score = metrics["changed_acc"]
+        score = (metrics["changed_acc"]
         + metrics["single_agent"]
-        + metrics["important_acc"]
+        + metrics["important_acc"])
 
         if score > best_score:
             best_score = score

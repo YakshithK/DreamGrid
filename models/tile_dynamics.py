@@ -19,7 +19,7 @@ class ResidualBlock(nn.Module):
     
 
 class TileDynamicsModel(nn.Module):
-    def __init__(self, latent_dim=128, hidden_dim=256, num_tile_classes=5):
+    def __init__(self, hidden_dim=256, num_tile_classes=5):
         super().__init__()
         self.num_tile_classes = num_tile_classes
 
@@ -70,7 +70,7 @@ class TileDynamicsModel(nn.Module):
         collision_logit = self.collision_head(g).squeeze(1)
 
         return {
-            "tile_delta_logits": tile_logits,
+            "tile_logits": tile_logits,
             "reward": reward,
             "done_logit": done_logit,
             "collision_logit": collision_logit
