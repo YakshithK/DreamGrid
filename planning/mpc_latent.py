@@ -109,10 +109,13 @@ class LatentMPCPlanner:
         agent_counts = (pred_tiles == 4).sum(dim=(2, 3)).float()
         invalid_agent = (agent_counts != 1).float()
 
+        term_penalty = 2.0 * done_probs
+
         per_step_score = (
             rewards
             - self.collision_penalty * collision_probs
             - self.invalid_agent_penalty * invalid_agent
+            - term_penalty
         )
 
         scores = (discounts * continuation * per_step_score).sum(dim=1)
