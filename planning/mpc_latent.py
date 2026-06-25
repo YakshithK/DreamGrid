@@ -66,7 +66,7 @@ class LatentMPCPlanner:
 
         return best_action, {
             "best_score": float(scores[best_idx].item()),
-            "best_sequence": best_sequence.detach().cpu().numpy,
+            "best_sequence": best_sequence.detach().cpu().tolist(),
             "mean_score": float(scores.mean().item()),
             "max_score": float(scores.max().item()),
             "min_score": float(scores.min().item()),

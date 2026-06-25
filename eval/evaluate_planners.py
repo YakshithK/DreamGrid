@@ -18,6 +18,8 @@ class RandomPolicy:
 
 class GreedyPolicy:
     def act(self, obs, env):
+        from env.constants import WALL, HAZARD
+
         best_action = 4
         best_dist = manhattan(env.agent_pos, env.goal_pos)
 
@@ -29,7 +31,7 @@ class GreedyPolicy:
             if not env._in_bounds(pos):
                 continue
 
-            if env.grid[pos] == 1:
+            if env.grid[pos] in (WALL, HAZARD):
                 continue
 
             dist = manhattan(pos, env.goal_pos)
@@ -42,7 +44,7 @@ class GreedyPolicy:
     
 class OracleShortestPathPolicy:
     def act(self, obs, env):
-        path = shortest_path(env.agent_pos, env.goal_pos, env.grid)
+        path = shortest_path(env.grid, env.agent_pos, env.goal_pos)
         
         if path is None or len(path) < 2:
             return random.randint(0, NUM_ACTIONS - 1), {"path_found": False}
@@ -87,13 +89,23 @@ def run_episode(env, policy, seed, max_steps=40):
         planner_infos.append(info)
 
         if done:
-            if not success and reward <= -10.0:
+            if success:
+                hazard_death = False
+                timeout = False
+            elif reward <= -10.0:
                 hazard_death = True
+                timeout = False
+            elif step_info.get("steps", step + 1) >= max_steps:
+                hazard_death = False
+                timeout = True
+            else:
+                hazard_death = False
+                timeout = False
 
             return {
                 "success": success,
                 "hazard_death": hazard_death,
-                "timeout": False,
+                "timeout": timeout,
                 "steps": step + 1,
                 "total_reward": total_reward,
                 "collisions": collisions,
@@ -103,8 +115,8 @@ def run_episode(env, policy, seed, max_steps=40):
     return {
         "success": success,
         "hazard_death": hazard_death,
-        "timeout": True,
-        "steps": max_steps,
+        "timeout": timeout,
+        "steps": step + 1,
         "total_reward": total_reward,
         "collisions": collisions,
         "planner_infos": planner_infos,
