@@ -123,6 +123,7 @@ def run_episode(env, policy, seed, max_steps=40):
     }
 
 def evaluate_policy(name, policy, num_episodes, seed_offset):
+    random.seed(seed_offset)
     env = RescueGridEnv(seed=seed_offset)
 
     results = []

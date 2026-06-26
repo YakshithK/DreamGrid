@@ -46,7 +46,7 @@ class LatentMPCPlanner:
 
         candidate_actions = torch.randint(
             low=0,
-            high=NUM_ACTIONS,
+            high=NUM_ACTIONS - 1,
             size=(self.num_candidates, self.horizon),
             device=self.device,
         )
