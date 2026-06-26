@@ -108,11 +108,13 @@ def main():
 
             per_action[action]["total"] += 1
 
-            per_action[action]["total"] += 1
-
             if pred_agent is not None:
                 single_agent += 1
                 per_action[action]["single_agent"] += 1
+
+            if pred_agent == true_agent:
+                position_correct += 1
+                per_action[action]["position_correct"] += 1
 
             true_collision = bool(info["collision"])
 
