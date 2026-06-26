@@ -40,7 +40,7 @@ def main():
         dynamics=dynamics,
         device=device,
         horizon=args.horizon,
-        candidates=args.candidates
+        num_candidates=args.candidates
     )
 
     env = RescueGridEnv()
