@@ -28,6 +28,7 @@ class LatentMPCPlanner:
         """
         obs_image: numpy array [80, 80, 3], uint8 or float image.
 
+
         returns:
         action: int, the best action to take
         info: dict with chosen sequence and score details
