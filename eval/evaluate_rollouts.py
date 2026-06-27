@@ -8,7 +8,7 @@ from env.tile_palette import image_to_tile_classes
 from world_model.loading import load_latent_dynamics
 from world_model.loading import load_tile_autoencoder
 from world_model.rollout import rollout_latent_model
-from datasets.rollouts import RolloutDataset
+from datasets_utils.rollouts import RolloutDataset
 
 def main():
     parser = argparse.ArgumentParser()

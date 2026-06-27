@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from datasets.transitions import ImageActionTransitionDataset
+from datasets_utils.transitions import ImageActionTransitionDataset
 from env.tile_palette import image_to_tile_classes
 from models.spatial_dynamics import SpatialDynamicsModel
 

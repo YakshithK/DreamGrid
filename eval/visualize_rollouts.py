@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.rollouts import RolloutDataset
+from datasets_utils.rollouts import RolloutDataset
 from world_model.loading import load_tile_autoencoder, load_latent_dynamics
 from world_model.rollout import rollout_latent_model
 

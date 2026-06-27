@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from env.tile_palette import image_to_tile_classes
 from models.tile_autoencoder import TileAutoencoder
-from datasets.images import ImageDataset
+from datasets_utils.images import ImageDataset
 
 
 def loss_fn(logits, image):

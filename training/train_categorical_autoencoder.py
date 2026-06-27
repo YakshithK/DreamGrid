@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from env.palette import rgb_to_palette_indices
 from models.categorical_autoencoder import CategoricalAutoencoder
-from datasets.images import ImageDataset
+from datasets_utils.images import ImageDataset
 
 def reconstruction_loss(logits, target_image):
     target_classes = rgb_to_palette_indices(target_image)

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from models.pixel_model import PixelTransitionModel
-from datasets.transitions import PixelTransitionDataset
+from datasets_utils.transitions import PixelTransitionDataset
 
 def weighted_transition_loss(pred, current, target):
     agent_blue = torch.tensor(

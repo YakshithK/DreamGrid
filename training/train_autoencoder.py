@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from models.autoencoder import ConvAutoencoder
-from datasets.images import ImageDataset
+from datasets_utils.images import ImageDataset
     
 def weighted_reconstruction_loss(recon, target):
     agent_blue = torch.tensor(
