@@ -14,7 +14,7 @@ class SpatialMPCPlanner:
             gamma=0.95,
             collision_penalty=5.0,
             invalid_agent_penalty=5.0,
-            progress_weight=0.25
+            progress_weight=0.10
     ):
         self.model = model
         self.device = device
@@ -64,6 +64,7 @@ class SpatialMPCPlanner:
     
     def score_rollouts(self, rollout, start_tiles):
         rewards = rollout["rewards"]
+        done_probs = rollout["done_probs"]
         collision_probs = rollout["collision_probs"]
         pred_tiles = rollout["pred_tiles"]
 
@@ -75,19 +76,33 @@ class SpatialMPCPlanner:
             dtype=torch.float32,
         )[None, :]
 
+        previous_not_done = 1.0 - done_probs[:, :-1]
+        continuation = torch.cat(
+            [
+                torch.ones(batch_size, 1, device=rewards.device),
+                previous_not_done,
+            ],
+            dim=1,
+        )
+        continuation = torch.cumprod(continuation, dim=1)
+
         agent_counts = (pred_tiles == 4).sum(dim=(2, 3)).float()
         invalid_agent = (agent_counts != 1).float()
 
         progress = self.goal_progress_score(pred_tiles, start_tiles)
+        hazard_penalty = self.agent_on_static_tile_penalty(pred_tiles, start_tiles, tile_id=2)
+        wall_penalty = self.agent_on_static_tile_penalty(pred_tiles, start_tiles, tile_id=1)
 
         per_step_score = (
             rewards
             + self.progress_weight * progress
             - self.collision_penalty * collision_probs
             - self.invalid_agent_penalty * invalid_agent
+            - 20.0 * hazard_penalty
+            - 5.0 * wall_penalty
         )
 
-        scores = (discounts * per_step_score).sum(dim=1)
+        scores = (discounts * continuation * per_step_score).sum(dim=1)
         return scores
     
     def goal_progress_score(self, pred_tiles, start_tiles):
@@ -133,3 +148,27 @@ class SpatialMPCPlanner:
         progress += reached_goal.float() * 40.0
 
         return progress
+    
+    def agent_on_static_tile_penalty(self, pred_tiles, start_tiles, tile_id):
+        """
+        pred_tiles: [N, H, 10, 10]
+        start_tiles: [1, 10, 10]
+
+        Returns [N, H], where 1 means the imagined agent is standing on
+        a tile that was hazard/wall/whatever in the observed map.
+        """
+        batch_size, horizon, height, width = pred_tiles.shape
+        device = pred_tiles.device
+
+        flat_pred = pred_tiles.view(batch_size, horizon, height * width)
+        agent_mask = flat_pred == 4
+        agent_exists = agent_mask.any(dim=2)
+        agent_idx = agent_mask.float().argmax(dim=2)
+
+        static_flat = start_tiles.view(-1)
+        static_bad = static_flat == tile_id
+
+        bad_at_agent = static_bad[agent_idx]
+        bad_at_agent = bad_at_agent & agent_exists
+
+        return bad_at_agent.float()
