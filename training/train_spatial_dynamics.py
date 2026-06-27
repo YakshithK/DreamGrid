@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from datasets.transitions import ImageActionTransitionData
+from datasets.transitions import ImageActionTransitionDataset
 from env.tile_palette import image_to_tile_classes
 from models.spatial_dynamics import SpatialDynamicsModel
 
@@ -152,14 +152,14 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
     train_loader = DataLoader(
-        ImageActionTransitionData(args.train_path),
+        ImageActionTransitionDataset(args.train_path),
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
     )
 
     val_loader = DataLoader(
-        ImageActionTransitionData(args.val_path),
+        ImageActionTransitionDataset(args.val_path),
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
