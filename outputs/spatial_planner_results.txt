@@ -1,0 +1,75 @@
+[ ]
+!python -m eval.evaluate_spatial_planners --episodes 100 --horizon 5 --candidates 512
+!python -m eval.evaluate_spatial_planners --episodes 100 --horizon 8 --candidates 1024
+random: 100% 100/100 [00:00<00:00, 239.77it/s]
+
+Policy: random
+Success Rate: 0.060
+Hazard Death Rate: 0.500
+Timeout Rate: 0.440
+Average Steps: 27.67
+Average Reward: -11.67
+Average Collisions: 6.23
+greedy: 100% 100/100 [00:00<00:00, 276.08it/s]
+
+Policy: greedy
+Success Rate: 0.470
+Hazard Death Rate: 0.000
+Timeout Rate: 0.530
+Average Steps: 23.98
+Average Reward: 3.52
+Average Collisions: 0.00
+oracle_shortest_path: 100% 100/100 [00:00<00:00, 434.61it/s]
+
+Policy: oracle_shortest_path
+Success Rate: 1.000
+Hazard Death Rate: 0.000
+Timeout Rate: 0.000
+Average Steps: 8.17
+Average Reward: 9.64
+Average Collisions: 0.00
+spatial_mpc: 100% 100/100 [03:44<00:00,  2.25s/it]
+
+Policy: spatial_mpc
+Success Rate: 0.810
+Hazard Death Rate: 0.000
+Timeout Rate: 0.190
+Average Steps: 14.67
+Average Reward: 7.41
+Average Collisions: 0.00
+random: 100% 100/100 [00:00<00:00, 243.58it/s]
+
+Policy: random
+Success Rate: 0.060
+Hazard Death Rate: 0.500
+Timeout Rate: 0.440
+Average Steps: 27.67
+Average Reward: -11.67
+Average Collisions: 6.23
+greedy: 100% 100/100 [00:00<00:00, 286.94it/s]
+
+Policy: greedy
+Success Rate: 0.470
+Hazard Death Rate: 0.000
+Timeout Rate: 0.530
+Average Steps: 23.98
+Average Reward: 3.52
+Average Collisions: 0.00
+oracle_shortest_path: 100% 100/100 [00:00<00:00, 472.83it/s]
+
+Policy: oracle_shortest_path
+Success Rate: 1.000
+Hazard Death Rate: 0.000
+Timeout Rate: 0.000
+Average Steps: 8.17
+Average Reward: 9.64
+Average Collisions: 0.00
+spatial_mpc: 100% 100/100 [11:46<00:00,  7.06s/it]
+
+Policy: spatial_mpc
+Success Rate: 0.850
+Hazard Death Rate: 0.000
+Timeout Rate: 0.150
+Average Steps: 13.04
+Average Reward: 7.89
+Average Collisions: 0.00
