@@ -13,7 +13,7 @@ from planning.mpc_spatial import SpatialMPCPlanner
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkponint", default="checkpoints/spatial_dynamics.pt")
+    parser.add_argument("--checkpoint", default="checkpoints/spatial_dynamics.pt")
     parser.add_argument("--seed", type=int, default=10000)
     parser.add_argument("--horizon", type=int, default=5)
     parser.add_argument("--candidates", type=int, default=100)
