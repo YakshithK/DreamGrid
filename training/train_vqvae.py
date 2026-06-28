@@ -74,6 +74,9 @@ def evaluate(model, loader, device):
             recon_rgb = torch.sigmoid(outputs["rgb_logits"])
             pred_tiles = outputs["tile_logits"].argmax(dim=1)
 
+            perplexity_total += outputs["perplexity"].item()
+            batches += 1
+
             tile_correct += (pred_tiles == target_tiles).sum().item()
             tile_total += target_tiles.numel()
 

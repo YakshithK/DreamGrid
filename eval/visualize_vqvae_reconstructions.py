@@ -27,7 +27,7 @@ def load_vqvae(checkpoint_path, device):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="data/val_transitions.npz")
+    parser.add_argument("--data_path", default="data/val_transitions.npz")
     parser.add_argument("--checkpoint", default="checkpoints/vqvae.pt")
     parser.add_argument("--batch_size", type=int, default=12)
     parser.add_argument("--out_path", default="outputs/vqvae_reconstructions.png")
@@ -73,7 +73,7 @@ def main():
 
         axes[2, i].imshow(tile_recon[i].permute(1, 2, 0).clamp(0, 1))
         axes[2, i].axis("off")
-        axes[2, i].set_title("tiles", font_size=8)
+        axes[2, i].set_title("tiles", fontsize=8)
 
     plt.tight_layout()
     plt.savefig(args.out_path, dpi=160)
