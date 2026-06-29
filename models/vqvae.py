@@ -158,4 +158,11 @@ class VQVAE(nn.Module):
             "perplexity": perplexity
         }
 
-        
+    def decode_code_tiles(self, code_ids):
+        """
+        code_ids: [B, 10, 10]
+        returns tile_logits: [B, 5, 10, 10]
+        """
+        z_q = self.quantizer.codebook(code_ids)
+        z_q = z_q.permute(0, 3, 1, 2).contiguous()
+        return self.tile_head(z_q)

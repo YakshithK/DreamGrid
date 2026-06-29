@@ -31,7 +31,7 @@ def rollout_vq_model(vqvae, dynamics, start_codes, actions):
 
         next_codes = outputs["next_code_logits"].argmax(dim=1)
 
-        _, tile_logits = vqvae.decode_codes(next_codes)
+        tile_logits = vqvae.decode_code_tiles(next_codes)
         pred_tiles = tile_logits.argmax(dim=1)
 
         pred_codes_list.append(next_codes)
