@@ -6,16 +6,8 @@ from tqdm import tqdm
 from env.constants import ACTION_NAMES, NUM_ACTIONS
 from env.grid import RescueGridEnv
 from env.tile_palette import image_to_tile_classes
-from models.spatial_dynamics import SpatialDynamicsModel
-
-
-def find_single_agent(tile_classes):
-    positions = (tile_classes == 4).nonzero(as_tuple=False)
-
-    if positions.shape[0] != 1:
-        return None
-
-    return tuple(positions[0].tolist())
+from world_model.loading import load_spatial_dynamics
+from eval.metrics import find_single_agent
 
 
 def clone_env(env):
@@ -37,9 +29,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = SpatialDynamicsModel().to(device)
-    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
-    model.eval()
+    model = load_spatial_dynamics(args.checkpoint, device)
 
     env = RescueGridEnv()
 

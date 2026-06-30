@@ -4,11 +4,10 @@ import os
 import matplotlib.pyplot as plt
 import torch
 
-
 from env.constants import ACTION_NAMES
 from env.grid import RescueGridEnv
-from models.spatial_dynamics import SpatialDynamicsModel
 from planning.mpc_spatial import SpatialMPCPlanner
+from world_model.loading import load_spatial_dynamics
 
 
 def main():
@@ -25,9 +24,7 @@ def main():
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = SpatialDynamicsModel().to(device)
-    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
-    model.eval()
+    model = load_spatial_dynamics(args.checkpoint, device)
 
     planner = SpatialMPCPlanner(
         model,

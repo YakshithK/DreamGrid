@@ -8,23 +8,8 @@ from env.grid import RescueGridEnv
 from env.tile_palette import image_to_tile_classes
 from world_model.loading import load_tile_autoencoder, load_latent_dynamics
 from world_model.rollout import rollout_latent_model
+from eval.metrics import find_single_agent
 
-
-def find_single_agent(tile_classes):
-    """
-    tile_classes: [10, 10]
-
-    Returns:
-    (row, col) if exactly one agent exists, otherwise None
-    """
-    
-    positions = (tile_classes == 4).nonzero(as_tuple=False)
-    
-
-    if positions.shape[0] != 1:
-        return None
-    
-    return tuple(positions[0].tolist())
 
 def main():
     parser = argparse.ArgumentParser()

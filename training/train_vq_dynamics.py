@@ -9,32 +9,8 @@ from tqdm import tqdm
 from datasets_utils.transitions import ImageActionTransitionDataset
 from env.tile_palette import image_to_tile_classes
 from models.vq_dynamics import VQDynamics
-from models.vqvae import VQVAE
-
-
-
-def load_vqvae(checkpoint_path, device):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    model = VQVAE(
-        num_codes=checkpoint["num_codes"],
-        code_dim=checkpoint["code_dim"],
-        hidden_dim=checkpoint["hidden_dim"]
-    ).to(device)
-
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
-
-    for param in model.parameters():
-        param.requires_grad = False
-
-    return model, checkpoint["num_codes"]
-
-
-def agent_position_targets(next_tiles):
-    batch_size = next_tiles.shape[0]
-    flat = next_tiles.view(batch_size, -1)
-    return (flat == 4).float().argmax(dim=1)
+from world_model.loading import load_vqvae_checkpoint
+from eval.metrics import agent_position_targets
 
 
 def compute_loss(outputs, next_codes, decoded_tile_logits, next_tiles, reward, done, collision):
@@ -102,7 +78,7 @@ def evaluate(vqvae, dynamics, loader, device):
             outputs = dynamics(current_codes, action)
 
             pred_codes = outputs["next_code_logits"].argmax(dim=1)
-            _, decoded_tile_logits = vqvae.decode_codes(pred_codes)
+            decoded_tile_logits = vqvae.decode_code_tiles(pred_codes)
 
             pred_tiles = decoded_tile_logits.argmax(dim=1)
 
@@ -154,7 +130,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    vqvae, num_codes = load_vqvae(args.vqvae_checkpoint, device)
+    vqvae, vqvae_checkpoint = load_vqvae_checkpoint(args.vqvae_checkpoint, device)
+    num_codes = vqvae_checkpoint["num_codes"]
 
     dynamics = VQDynamics(
         num_codes=num_codes,
@@ -207,7 +184,7 @@ def main():
             outputs = dynamics(current_codes, action)
             pred_codes = outputs["next_code_logits"].argmax(dim=1)
 
-            _, decoded_tile_logits = vqvae.decode_codes(pred_codes)
+            decoded_tile_logits = vqvae.decode_code_tiles(pred_codes)
 
             loss, parts = compute_loss(
                 outputs,

@@ -3,20 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from env.constants import GRID_SIZE, NUM_ACTIONS
-
-
-class ResidualBlock(nn.Module):
-    def __init__(self, channels):
-        super().__init__()
-
-        self.net = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1)
-        )
-
-    def forward(self, x):
-        return F.relu(x + self.net(x))
+from models.blocks import ResidualBlock
     
 
 class VQDynamics(nn.Module):

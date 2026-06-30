@@ -7,22 +7,7 @@ from tqdm import tqdm
 
 from datasets_utils.images import ImageDataset
 from env.tile_palette import image_to_tile_classes
-from models.vqvae import VQVAE
-
-
-def load_vqvae(checkpoint_path, device):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    model = VQVAE(
-        num_codes=checkpoint["num_codes"],
-        code_dim=checkpoint["code_dim"],
-        hidden_dim=checkpoint["hidden_dim"]
-    ).to(device)
-
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
-
-    return model
+from world_model.loading import load_vqvae
 
 
 def main():

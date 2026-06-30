@@ -3,6 +3,7 @@ import torch
 from env.constants import NUM_ACTIONS
 from env.tile_palette import image_to_tile_classes
 from world_model.spatial_rollout import rollout_spatial_model
+from planning.scoring import score_tile_rollout
 
 class SpatialMPCPlanner:
     def __init__(
@@ -63,48 +64,15 @@ class SpatialMPCPlanner:
         }
     
     def score_rollouts(self, rollout, start_tiles):
-        rewards = rollout["rewards"]
-        done_probs = rollout["done_probs"]
-        collision_probs = rollout["collision_probs"]
-        pred_tiles = rollout["pred_tiles"]
-
-        batch_size, horizon = rewards.shape
-
-        discounts = torch.tensor(
-            [self.gamma ** t for t in range(horizon)],
-            device=rewards.device,
-            dtype=torch.float32,
-        )[None, :]
-
-        previous_not_done = 1.0 - done_probs[:, :-1]
-        continuation = torch.cat(
-            [
-                torch.ones(batch_size, 1, device=rewards.device),
-                previous_not_done,
-            ],
-            dim=1,
-        )
-        continuation = torch.cumprod(continuation, dim=1)
-
-        agent_counts = (pred_tiles == 4).sum(dim=(2, 3)).float()
-        invalid_agent = (agent_counts != 1).float()
-
-        progress = self.goal_progress_score(pred_tiles, start_tiles)
-        hazard_penalty = self.agent_on_static_tile_penalty(pred_tiles, start_tiles, tile_id=2)
-        wall_penalty = self.agent_on_static_tile_penalty(pred_tiles, start_tiles, tile_id=1)
-
-        per_step_score = (
-            rewards
-            + self.progress_weight * progress
-            - self.collision_penalty * collision_probs
-            - self.invalid_agent_penalty * invalid_agent
-            - 20.0 * hazard_penalty
-            - 5.0 * wall_penalty
+        return score_tile_rollout(
+            rollout=rollout,
+            start_tiles=start_tiles,
+            gamma=self.gamma,
+            collision_penalty=self.collision_penalty,
+            invalid_agent_penalty_weight=self.invalid_agent_penalty,
+            progress_weight=self.progress_weight,
         )
 
-        scores = (discounts * continuation * per_step_score).sum(dim=1)
-        return scores
-    
     def goal_progress_score(self, pred_tiles, start_tiles):
         batch_size, horizon, height, width = pred_tiles.shape
 

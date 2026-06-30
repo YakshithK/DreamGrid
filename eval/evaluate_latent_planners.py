@@ -1,15 +1,18 @@
 import argparse
 
 import torch
-from planning.mpc_spatial import SpatialMPCPlanner
+
+from planning.mpc_latent import LatentMPCPlanner
 from planning.policies import RandomPolicy, GreedyPolicy, OracleShortestPathPolicy, PlannerPolicy
 from planning.episode import evaluate_policy
-from world_model.loading import load_spatial_dynamics
-
+from world_model.loading import load_latent_dynamics, load_tile_autoencoder
+    
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="checkpoints/spatial_dynamics.pt")
+    parser.add_argument("--autoencoder_checkpoint", default="checkpoints/tile_autoencoder_latent128.pt")
+    parser.add_argument("--dynamics_checkpoint", default="checkpoints/latent_dynamics_latent128.pt")
+    parser.add_argument("--latent_dim", type=int, default=128)
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--horizon", type=int, default=5)
     parser.add_argument("--candidates", type=int, default=512)
@@ -18,10 +21,13 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = load_spatial_dynamics(args.checkpoint, device)
+    autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, device=device, latent_dim=args.latent_dim)
 
-    planner = SpatialMPCPlanner(
-        model=model,
+    dynamics = load_latent_dynamics(args.dynamics_checkpoint, device=device, latent_dim=args.latent_dim)
+
+    planner = LatentMPCPlanner(
+        autoencoder=autoencoder,
+        dynamics=dynamics,
         device=device,
         horizon=args.horizon,
         num_candidates=args.candidates,
@@ -31,17 +37,11 @@ def main():
         ("random", RandomPolicy()),
         ("greedy", GreedyPolicy()),
         ("oracle_shortest_path", OracleShortestPathPolicy()),
-        ("spatial_mpc", PlannerPolicy(planner)),
+        ("learned_mpc", PlannerPolicy(planner)),
     ]
 
     for name, policy in policies:
-        evaluate_policy(
-            name,
-            policy,
-            num_episodes=args.episodes,
-            seed_offset=args.seed_offset,
-        )
-
+        evaluate_policy(name, policy, num_episodes=args.episodes, seed_offset=args.seed_offset)
 
 if __name__ == "__main__":
     main()

@@ -9,19 +9,7 @@ from tqdm import tqdm
 from datasets_utils.transitions import ImageActionTransitionDataset
 from env.tile_palette import image_to_tile_classes
 from models.spatial_dynamics import SpatialDynamicsModel
-
-
-def agent_position_targets(next_tiles):
-    """
-    next_tiles: [B, 10, 10]
-
-    return:
-    target index in [0, 99] for the agent position
-    """
-
-    batch_size = next_tiles.shape[0]
-    flat = next_tiles.view(batch_size, -1)
-    return (flat == 4).float().argmax(dim=1)
+from eval.metrics import agent_position_targets
 
 def compute_loss(outputs, current_tiles, next_tiles, reward, done, collision):
     logits = outputs["next_tile_logits"]
