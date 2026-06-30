@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from env.tile_palette import image_to_tile_classes
 from datasets_utils.transitions import ImageActionTransitionDataset
-from world_model.decoder import copy_logits_from_tiles, build_copy_residual_tile_logits_from_image
+from world_model.decoder import build_copy_residual_tile_logits_from_image
 from world_model.loading import load_latent_dynamics, load_tile_autoencoder
 
 

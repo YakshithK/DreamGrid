@@ -2,7 +2,6 @@ import torch
 
 from env.constants import NUM_ACTIONS
 from world_model.rollout import rollout_latent_model
-from planning.scoring import score_tile_rollout
 
 class LatentMPCPlanner:
     def __init__(
@@ -74,23 +73,40 @@ class LatentMPCPlanner:
             "min_score": float(scores.min().item()),
         }
 
-    def score_rollouts(self, rollout, start_tiles):
-        """
-        Scores imagined futures.
+    def score_rollouts(self, rollout):
+        rewards = rollout["rewards"]
+        done_probs = rollout["done_probs"]
+        collision_probs = rollout["collision_probs"]
+        pred_tiles = rollout["pred_tiles"]
 
-        rollout["rewards"]: [N, H]
-        rollout["collision_probs"]: [N, H]
-        rollout["pred_tiles"]: [N, H, 10, 10]
-        """
+        batch_size, horizon = rewards.shape
 
-        return score_tile_rollout(
-            rollout=rollout,
-            start_tiles=start_tiles,
-            gamma=self.gamma,
-            collision_penalty=self.collision_penalty,
-            invalid_agent_penalty_weight=self.invalid_agent_penalty,
-            progress_weight=self.progress_weight,
+        discounts = torch.tensor(
+            [self.gamma ** t for t in range(horizon)],
+            device=rewards.device,
+            dtype=torch.float32,
+        )[None, :]
+
+        previous_not_done = 1.0 - done_probs[:, :-1]
+        continuation = torch.cat(
+            [
+                torch.ones(batch_size, 1, device=rewards.device),
+                previous_not_done,
+            ],
+            dim=1,
         )
+        continuation = torch.cumprod(continuation, dim=1)
+
+        agent_counts = (pred_tiles == 4).sum(dim=(2, 3)).float()
+        invalid_agent = (agent_counts != 1).float()
+
+        per_step_score = (
+            rewards
+            - self.collision_penalty * collision_probs
+            - self.invalid_agent_penalty * invalid_agent
+        )
+
+        return (discounts * continuation * per_step_score).sum(dim=1)
         
     def visual_goal_progress_score(self, pred_tiles):
         """

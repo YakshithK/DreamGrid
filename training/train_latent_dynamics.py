@@ -5,12 +5,10 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from env.tile_palette import image_to_tile_classes
 from losses.latent_dynamics import compute_latent_dynamics_loss
 from models.latent_dynamics import LatentDynamicsModel
 from models.tile_autoencoder import TileAutoencoder
 from datasets_utils.transitions import ImageActionTransitionDataset
-from world_model.decoder import copy_logits_from_tiles, build_copy_residual_tile_logits_from_image
 
 
 def encode_images(autoencoder, images):

@@ -1,6 +1,6 @@
 import random
 
-from env.constants import ACTION_TO_DELTA, HAZARD, NUM_ACTIONS, WALL
+from env.constants import ACTION_TO_DELTA, NUM_ACTIONS
 from env.pathfinding import action_between, shortest_path
 
 
