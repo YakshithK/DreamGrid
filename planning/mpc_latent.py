@@ -1,7 +1,7 @@
 import torch
 
 from env.constants import NUM_ACTIONS
-from world_model.rollout import rollout_latent_model
+from world_model.rollouts.latent import rollout_latent_model
 
 class LatentMPCPlanner:
     def __init__(

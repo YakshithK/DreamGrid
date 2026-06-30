@@ -2,7 +2,7 @@ import torch
 
 from env.constants import NUM_ACTIONS
 from env.tile_palette import image_to_tile_classes
-from world_model.spatial_rollout import rollout_spatial_model
+from world_model.rollouts.spatial import rollout_spatial_model
 from planning.scoring import score_tile_rollout
 
 class SpatialMPCPlanner:

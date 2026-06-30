@@ -1,10 +1,10 @@
 import torch
 
-from models.latent_dynamics import LatentDynamicsModel
-from models.spatial_dynamics import SpatialDynamicsModel
-from models.tile_autoencoder import TileAutoencoder
-from models.vq_dynamics import VQDynamics
-from models.vqvae import VQVAE
+from models.baselines.latent_dynamics import LatentDynamicsModel
+from models.baselines.spatial_dynamics import SpatialDynamicsModel
+from models.baselines.tile_autoencoder import TileAutoencoder
+from models.final.vq_dynamics import VQDynamics
+from models.final.vqvae import VQVAE
 
 
 def freeze_eval(model):

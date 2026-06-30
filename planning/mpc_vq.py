@@ -1,7 +1,7 @@
 import torch
 
 from env.constants import NUM_ACTIONS
-from world_model.vq_rollout import rollout_vq_model
+from world_model.rollouts.vq import rollout_vq_model
 from planning.scoring import score_tile_rollout
 
 class VQMPCPlanner:
