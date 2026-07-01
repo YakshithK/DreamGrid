@@ -13,7 +13,7 @@ from world_model.rollouts.vq import rollout_vq_model
 
 
 def format_actions(actions, split=4):
-    names = [ACTION_NAMES(int(a)) for a in actions]
+    names = [ACTION_NAMES[int(a)] for a in actions]
     
     if len(names) <= split:
         return " ".join(names)
@@ -166,7 +166,7 @@ def main():
         axes[rank, 0].imshow(image_for_plot(current_images))
         axes[rank, 0].set_title(
             f"candidate {rank + 1}\n"
-            f"score={score:.2f}\n",
+            f"score={score:.2f}\n"
             f"{format_actions(actions)}",
             fontsize=7
         )
