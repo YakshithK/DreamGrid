@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import torch
 
-from env.constants import ACTION_NAMES
+from env.constants import ACTION_NAMES, MAX_STEPS
 from env.grid import RescueGridEnv
 from planning.mpc_vq import VQMPCPlanner
 from world_model.loading import load_vq_dynamics, load_vqvae
@@ -30,10 +30,10 @@ def main():
     parser.add_argument("--horizon", type=int, default=5)
     parser.add_argument("--candidates", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=40)
-    parser.add_argument("--out_path", default="outputs/figures/vq_mpc_episode.png")
+    parser.add_argument("--out_dir", default="outputs/figures")
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.out_path), exist_ok=True)
+    os.makedirs(os.path.dirname(args.out_dir), exist_ok=True)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -68,11 +68,9 @@ def main():
         best_score = plan_info.get("best_score", 0.0)
 
         title = (
-            f"t={step+1}\n"
-            f"a={ACTION_NAMES[action]}\n"
-            f"r={reward:.2f}\n"
-            f"s={best_score:.2f}\n"
-            f"{format_plan(best_sequence)}"
+            f"t={step + 1} | {ACTION_NAMES[action]}\n"
+            f"reward={reward:.2f} | score={best_score:.2f}\n"
+            f"plan: {format_plan(best_sequence)}"
         )
 
         frames.append(obs)
@@ -83,6 +81,8 @@ def main():
                 final_status = "success"
             elif reward <= -10.0:
                 final_status = "hazard"
+            elif step_info.get("steps", 0) >= MAX_STEPS:
+                final_status = "timeout"
             else:
                 final_status = "done"
             break
@@ -113,9 +113,14 @@ def main():
         fontsize=12,
     )
 
-    plt.tight_layout()
-    plt.savefig(args.out_path, dpi=300)
-    print(f"Saved VQ-MPC episode visualization to {args.out_path}")
+    out_path = os.path.join(
+        args.out_dir,
+        f"vq_mpc_episode_seed{args.seed}_h{args.horizon}_c{args.candidates}.png",
+    )
+
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    plt.savefig(out_path, dpi=300)
+    print(f"Saved VQ-MPC episode visualization to {out_path}")
 
 
 if __name__ == "__main__":
