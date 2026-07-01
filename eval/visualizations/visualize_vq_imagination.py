@@ -74,12 +74,9 @@ def min_valid_distance(distances):
     return min(valid)
 
 
-def terminal_step(distances, done_probs, done_threshold=0.5):
+def goal_terminal_step(distances):
     for step, dist in enumerate(distances):
         if dist == 0:
-            return step
-
-        if float(done_probs[step].item()) >= done_threshold:
             return step
 
     return None
@@ -251,24 +248,24 @@ def main():
         score = float(top_scores[rank].item())
         min_dist = min_valid_distance(top_distances[rank])
         reached = any(top_reached_goal[rank])
-        terminal_at = terminal_step(top_distances[rank], top_done_probs[rank])
-        terminal_label = "none" if terminal_at is None else f"t+{terminal_at + 1}"
+        goal_at = goal_terminal_step(top_distances[rank])
+        goal_label = "none" if goal_at is None else f"t+{goal_at + 1}"
 
         axes[rank, 0].imshow(image_for_plot(current_images))
         axes[rank, 0].set_title(
             f"candidate {rank + 1}\n"
             f"score={score:.2f}\n"
             f"min_dist={min_dist} reached={reached}\n"
-            f"terminal={terminal_label}\n"
+            f"goal_at={goal_label}\n"
             f"{format_actions(actions)}",
             fontsize=7
         )
 
         for t in range(args.horizon):
-            if terminal_at is not None and t > terminal_at:
+            if goal_at is not None and t > goal_at:
                 axes[rank, t + 1].set_title(
                     f"imagined t+{t + 1}\n"
-                    "terminal reached\n"
+                    "goal reached\n"
                     "future ignored",
                     fontsize=7
                 )
@@ -280,10 +277,11 @@ def main():
             done_p = float(top_done_probs[rank, t].item())
             collision_p = float(top_collision_probs[rank, t].item())
             dist = top_distances[rank][t]
-            terminal_marker = " terminal" if terminal_at == t else ""
+            goal_marker = " goal" if goal_at == t else ""
+            done_warning = " done?" if done_p >= 0.5 and dist != 0 else ""
 
             axes[rank, t + 1].set_title(
-                f"imagined t+{t + 1}{terminal_marker}\n"
+                f"imagined t+{t + 1}{goal_marker}{done_warning}\n"
                 f"a={ACTION_NAMES[int(actions[t])]}\n"
                 f"dist={dist} r={reward:.2f}\n"
                 f"d={done_p:.2f} c={collision_p:.2f}",
