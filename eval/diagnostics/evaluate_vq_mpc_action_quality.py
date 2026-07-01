@@ -7,7 +7,7 @@ from tqdm import tqdm
 from env.constants import ACTION_NAMES
 from env.grid import RescueGridEnv
 from env.pathfinding import shortest_path, action_between
-from planning.mpc_latent import VQMPCPlanner
+from planning.mpc_vq import VQMPCPlanner
 from world_model.loading import load_vq_dynamics, load_vqvae
 
 def oracle_action(env):
