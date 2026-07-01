@@ -33,7 +33,7 @@ def main():
     parser.add_argument("--out_dir", default="outputs/figures")
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.out_dir), exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

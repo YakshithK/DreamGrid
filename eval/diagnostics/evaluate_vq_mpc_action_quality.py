@@ -34,7 +34,7 @@ def main():
     dynamics = load_vq_dynamics(args.dynamics_checkpoint, device=device)
 
     planner = VQMPCPlanner(
-        vqvae= vqvae,
+        vqvae=vqvae,
         dynamics=dynamics,
         device=device,
         horizon=args.horizon,
@@ -66,6 +66,10 @@ def main():
 
     print()
     print(f"States: {total}")
+    if total == 0:
+        print("Oracle action match: n/a")
+        return
+
     print(f"Oracle action match: {matches / total:.4f}")
 
     print()
