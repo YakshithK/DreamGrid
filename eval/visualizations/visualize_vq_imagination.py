@@ -74,6 +74,17 @@ def min_valid_distance(distances):
     return min(valid)
 
 
+def terminal_step(distances, done_probs, done_threshold=0.5):
+    for step, dist in enumerate(distances):
+        if dist == 0:
+            return step
+
+        if float(done_probs[step].item()) >= done_threshold:
+            return step
+
+    return None
+
+
 def oracle_actions(env, horizon):
     path = shortest_path(env.grid, env.agent_pos, env.goal_pos)
 
@@ -240,26 +251,39 @@ def main():
         score = float(top_scores[rank].item())
         min_dist = min_valid_distance(top_distances[rank])
         reached = any(top_reached_goal[rank])
+        terminal_at = terminal_step(top_distances[rank], top_done_probs[rank])
+        terminal_label = "none" if terminal_at is None else f"t+{terminal_at + 1}"
 
         axes[rank, 0].imshow(image_for_plot(current_images))
         axes[rank, 0].set_title(
             f"candidate {rank + 1}\n"
             f"score={score:.2f}\n"
             f"min_dist={min_dist} reached={reached}\n"
+            f"terminal={terminal_label}\n"
             f"{format_actions(actions)}",
             fontsize=7
         )
 
         for t in range(args.horizon):
+            if terminal_at is not None and t > terminal_at:
+                axes[rank, t + 1].set_title(
+                    f"imagined t+{t + 1}\n"
+                    "terminal reached\n"
+                    "future ignored",
+                    fontsize=7
+                )
+                continue
+
             axes[rank, t+1].imshow(image_for_plot(imagined_images[rank, t]))
 
             reward = float(top_rewards[rank, t].item())
             done_p = float(top_done_probs[rank, t].item())
             collision_p = float(top_collision_probs[rank, t].item())
             dist = top_distances[rank][t]
+            terminal_marker = " terminal" if terminal_at == t else ""
 
             axes[rank, t + 1].set_title(
-                f"imagined t+{t + 1}\n"
+                f"imagined t+{t + 1}{terminal_marker}\n"
                 f"a={ACTION_NAMES[int(actions[t])]}\n"
                 f"dist={dist} r={reward:.2f}\n"
                 f"d={done_p:.2f} c={collision_p:.2f}",
@@ -323,6 +347,7 @@ def main():
             continue
 
         frame = torch.as_tensor(oracle_frames[t], dtype=torch.float32)
+
 
         if frame.max() > 1.0:
             frame = frame / 255.0
