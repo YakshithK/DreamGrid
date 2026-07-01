@@ -6,7 +6,7 @@ import torch
 
 from env.constants import ACTION_NAMES
 from env.grid import RescueGridEnv
-from planning.mpc_spatial import VQMPCPlanner
+from planning.mpc_vq import VQMPCPlanner
 from world_model.loading import load_vq_dynamics, load_vqvae
 
 
