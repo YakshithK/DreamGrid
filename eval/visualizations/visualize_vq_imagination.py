@@ -6,6 +6,7 @@ import torch
 
 from env.constants import ACTION_NAMES, NUM_ACTIONS
 from env.grid import RescueGridEnv
+from env.pathfinding import action_between, shortest_path
 from env.tile_palette import tile_classes_to_image
 from planning.scoring import score_tile_rollout
 from world_model.loading import load_vq_dynamics, load_vqvae
@@ -35,6 +36,55 @@ def clone_env(env):
     cloned.done = env.done
 
     return cloned
+
+
+def agent_goal_distance_from_tiles(tile_classes):
+    agent_positions = (tile_classes == 4).nonzero(as_tuple=False)
+    goal_positions = (tile_classes == 3).nonzero(as_tuple=False)
+
+    if len(agent_positions) != 1 or len(goal_positions) < 1:
+        return None
+
+    agent = agent_positions[0]
+    goal = goal_positions[0]
+    return int((agent - goal).abs().sum().item())
+
+
+def agent_goal_distance_from_env(env):
+    ar, ac = env.agent_pos
+    gr, gc = env.goal_pos
+    return abs(ar - gr) + abs(ac - gc)
+
+
+def shortest_distance(env):
+    path = shortest_path(env.grid, env.agent_pos, env.goal_pos)
+
+    if path is None:
+        return None
+
+    return len(path) - 1
+
+
+def min_valid_distance(distances):
+    valid = [d for d in distances if d is not None]
+
+    if not valid:
+        return "n/a"
+
+    return min(valid)
+
+
+def oracle_actions(env, horizon):
+    path = shortest_path(env.grid, env.agent_pos, env.goal_pos)
+
+    if path is None:
+        return []
+
+    actions = []
+    for i in range(min(len(path) - 1, horizon)):
+        actions.append(action_between(path[i], path[i + 1]))
+
+    return actions
 
 
 def rollout_real_env(env, actions):
@@ -69,6 +119,13 @@ def final_status(done, reward, info):
     return "done"
 
 
+def rollout_status(dones, rewards, infos):
+    if not dones:
+        return "no steps"
+
+    return final_status(dones[-1], rewards[-1], infos[-1])
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vqvae_checkpoint", default="checkpoints/final/vqvae.pt")
@@ -90,6 +147,10 @@ def main():
     env = RescueGridEnv()
     obs = env.reset(seed=args.seed)
     real_env = clone_env(env)
+    oracle_env = clone_env(env)
+    oracle_plan = oracle_actions(env, args.horizon)
+    oracle_distance = shortest_distance(env)
+    start_distance = agent_goal_distance_from_env(env)
 
     obs_tensor = torch.as_tensor(obs, device=device, dtype=torch.float32)
 
@@ -132,6 +193,20 @@ def main():
         top_rewards = rollout["rewards"][top_indices]
         top_done_probs = rollout["done_probs"][top_indices]
         top_collision_probs = rollout["collision_probs"][top_indices]
+        top_distances = []
+        top_reached_goal = []
+
+        for rank in range(top_k):
+            rank_distances = []
+            rank_reached = []
+
+            for t in range(args.horizon):
+                dist = agent_goal_distance_from_tiles(top_tiles[rank, t])
+                rank_distances.append(dist)
+                rank_reached.append(dist == 0)
+
+            top_distances.append(rank_distances)
+            top_reached_goal.append(rank_reached)
 
         flat_tiles = top_tiles.reshape(top_k * args.horizon, 10, 10)
         flat_images = tile_classes_to_image(flat_tiles)
@@ -139,8 +214,9 @@ def main():
 
     best_actions = top_actions[0].detach().cpu().tolist()
     real_frames, real_rewards, real_dones, real_infos = rollout_real_env(real_env, best_actions)
+    oracle_frames, oracle_rewards, oracle_dones, oracle_infos = rollout_real_env(oracle_env, oracle_plan)
 
-    rows = top_k + 1
+    rows = top_k + 2
     cols = args.horizon + 1
 
     fig, axes = plt.subplots(
@@ -162,11 +238,14 @@ def main():
     for rank in range(top_k):
         actions = top_actions[rank].detach().cpu().tolist()
         score = float(top_scores[rank].item())
+        min_dist = min_valid_distance(top_distances[rank])
+        reached = any(top_reached_goal[rank])
 
         axes[rank, 0].imshow(image_for_plot(current_images))
         axes[rank, 0].set_title(
             f"candidate {rank + 1}\n"
             f"score={score:.2f}\n"
+            f"min_dist={min_dist} reached={reached}\n"
             f"{format_actions(actions)}",
             fontsize=7
         )
@@ -177,11 +256,13 @@ def main():
             reward = float(top_rewards[rank, t].item())
             done_p = float(top_done_probs[rank, t].item())
             collision_p = float(top_collision_probs[rank, t].item())
+            dist = top_distances[rank][t]
 
             axes[rank, t + 1].set_title(
                 f"imagined t+{t + 1}\n"
                 f"a={ACTION_NAMES[int(actions[t])]}\n"
-                f"r={reward:.2f} d={done_p:.2f} c={collision_p:.2f}",
+                f"dist={dist} r={reward:.2f}\n"
+                f"d={done_p:.2f} c={collision_p:.2f}",
                 fontsize=7
             )
 
@@ -190,7 +271,8 @@ def main():
     axes[actual_row, 0].imshow(image_for_plot(current_images))
     axes[actual_row, 0].set_title(
         f"actual rollout\n"
-        "execute best plan",
+        "execute candidate 1\n"
+        "open-loop, no replanning",
         fontsize=7
     )
 
@@ -212,12 +294,53 @@ def main():
         done = real_dones[t]
         info = real_infos[t]
         status = final_status(done, reward, info)
+        dist = abs(info["agent_pos"][0] - info["goal_pos"][0]) + abs(info["agent_pos"][1] - info["goal_pos"][1])
 
         axes[actual_row, col].imshow(image_for_plot(frame))
         axes[actual_row, col].set_title(
             f"actual t+{t + 1}\n"
             f"a={ACTION_NAMES[int(best_actions[t])]}\n"
-            f"r={reward:.2f} | {status}",
+            f"dist={dist} r={reward:.2f}\n"
+            f"{status}",
+            fontsize=7
+        )
+
+    oracle_row = top_k + 1
+
+    axes[oracle_row, 0].imshow(image_for_plot(current_images))
+    axes[oracle_row, 0].set_title(
+        f"oracle reference\n"
+        f"shortest dist={oracle_distance}\n"
+        f"{format_actions(oracle_plan)}",
+        fontsize=7
+    )
+
+    for t in range(args.horizon):
+        col = t + 1
+
+        if t >= len(oracle_frames):
+            axes[oracle_row, col].set_title("oracle stopped", fontsize=7)
+            continue
+
+        frame = torch.as_tensor(oracle_frames[t], dtype=torch.float32)
+
+        if frame.max() > 1.0:
+            frame = frame / 255.0
+
+        frame = frame.permute(2, 0, 1)
+
+        reward = oracle_rewards[t]
+        done = oracle_dones[t]
+        info = oracle_infos[t]
+        status = final_status(done, reward, info)
+        dist = abs(info["agent_pos"][0] - info["goal_pos"][0]) + abs(info["agent_pos"][1] - info["goal_pos"][1])
+
+        axes[oracle_row, col].imshow(image_for_plot(frame))
+        axes[oracle_row, col].set_title(
+            f"oracle t+{t + 1}\n"
+            f"a={ACTION_NAMES[int(oracle_plan[t])]}\n"
+            f"dist={dist} r={reward:.2f}\n"
+            f"{status}",
             fontsize=7
         )
 
@@ -225,7 +348,8 @@ def main():
         (
             f"VQ imagination | seed={args.seed} | "
             f"horizon={args.horizon} | candidates={args.candidates} | "
-            f"top_k={args.top_k}"
+            f"top_k={args.top_k} | start_dist={start_distance} | "
+            f"candidate1_actual={rollout_status(real_dones, real_rewards, real_infos)}"
         ),
         fontsize=12
     )
