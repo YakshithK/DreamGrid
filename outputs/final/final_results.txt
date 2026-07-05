@@ -1,0 +1,69 @@
+DreamGrid Final Results
+
+Final planner setting:
+horizon=24
+candidates=4096
+episodes=100
+seed_offset=10000
+
+Planner Results
+
+random:
+  success_rate: 0.060
+  hazard_death_rate: 0.500
+  timeout_rate: 0.440
+  average_steps: 27.67
+  average_reward: -11.67
+  average_collisions: 6.23
+
+greedy:
+  success_rate: 0.470
+  hazard_death_rate: 0.000
+  timeout_rate: 0.530
+  average_steps: 23.98
+  average_reward: 3.52
+  average_collisions: 0.00
+
+oracle_shortest_path:
+  success_rate: 1.000
+  hazard_death_rate: 0.000
+  timeout_rate: 0.000
+  average_steps: 8.17
+  average_reward: 9.64
+  average_collisions: 0.00
+
+vq_mpc:
+  success_rate: 0.850
+  hazard_death_rate: 0.000
+  timeout_rate: 0.150
+  average_steps: 13.78
+  average_reward: 7.31
+  average_collisions: 0.57
+
+Action Quality
+
+setting:
+  states: 200
+  horizon: 24
+  candidates: 4096
+
+oracle_first_action_match: 0.655
+
+vq_mpc_action_distribution:
+  down: 48
+  up: 51
+  right: 56
+  left: 45
+
+oracle_action_distribution:
+  down: 54
+  left: 33
+  up: 83
+  right: 30
+
+Interpretation
+
+The learned visual VQ world model beats random and greedy by a large margin.
+It reaches 85% success from RGB-derived learned state and imagined VQ rollouts.
+It remains below oracle because the learned planner is less efficient and still has timeout/collision errors.
+The action-quality result shows the learned MPC often agrees with shortest-path behavior, but does not simply copy oracle.
