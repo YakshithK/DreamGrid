@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="DreamGrid banner" width="100%">
+</p>
+
 # DreamGrid
 
 DreamGrid is a small visual world model where the model learns a compact representation of a grid-like environment from RGB observations, imagines future states under candidate actions, and uses those imagined states to plan efficiently toward the goal.
@@ -26,7 +30,7 @@ The imagination visualization shows candidate futures sampled by the planner. Ea
 
 ## Environment
 
-DreamGrid uses a 10x10 rescue grid rendered as an 80x80 RGB image.
+DreamGrid uses a 10x10 rescue grid re ndered as an 80x80 RGB image.
 
 Tiles:
 
