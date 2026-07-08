@@ -26,7 +26,7 @@ The imagination visualization shows candidate futures sampled by the planner. Ea
 
 ## Environment
 
-DreamGrid uses a 10x10 rescue grid re ndered as an 80x80 RGB image.
+DreamGrid uses a 10x10 rescue grid rendered as an 80x80 RGB image.
 
 Tiles:
 
