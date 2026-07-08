@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/banner.png" alt="DreamGrid banner" width="100%">
-</p>
-
 # DreamGrid
 
 DreamGrid is a small visual world model where the model learns a compact representation of a grid-like environment from RGB observations, imagines future states under candidate actions, and uses those imagined states to plan efficiently toward the goal.
