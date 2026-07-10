@@ -14,9 +14,13 @@ Final answer:
 
 ## Demo
 
+The easiest way to run DreamGrid is the Colab demo:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YakshithK/DreamGrid/blob/master/notebooks/DreamGrid_Demo.ipynb)
+
 ### Real VQ-MPC Episode
 
-![VQ-MPC episode](outputs/final/episodes/vq_mpc_episode_seed10000_h8_c1024.png)
+![VQ-MPC episode](outputs/final/episodes/vq_mpc_episode_seed10001_h8_c1024.png)
 
 ### Learned Imagination
 
@@ -121,6 +125,14 @@ single-agent rate:  ~0.985
 collision accuracy: ~0.999
 ```
 
+### Training Supervision
+
+The representation is learned from RGB images, but the final VQ-VAE is not trained with RGB reconstruction alone. Because each rendered cell has a known semantic class, training also uses an auxiliary supervised tile-classification loss for floor, wall, hazard, goal and agent tiles.
+
+The VQ dynamics model similarly receives losses for next-code prediction, decoded tile prediction, agent position, reward, termination and collision. These auxiliary objectives make action-relevant information survive quantization and multi-step prediction.
+
+During planning, the real simulator is not queried to predict candidate futures. However, the MPC scoring function is hand-designed: it scores learned predictions using reward, collision probability, goal progress, invalid-agent states, and predicted overlap with static hazards or walls.  
+
 ## Planning with Imagination
 
 VQ-MPC samples candidate action sequences.
@@ -180,6 +192,8 @@ Results:
 | Greedy | 0.47 | 0.00 | 0.53 | 3.52 | 23.98 | 0.00 |
 | VQ-MPC | 0.85 | 0.00 | 0.15 | 7.31 | 13.78 | 0.57 |
 | Oracle | 1.00 | 0.00 | 0.00 | 9.64 | 8.17 | 0.00 |
+
+The environment maps use seeds 10000 through 10099. Candidate-action sampling is also seeded for reproducibility. These seeds were used during planner development, so the reported planner result should be interpreted as a fixed benchmark rather than a completely untouched test set. 
 
 VQ-MPC beats greedy by:
 
@@ -283,6 +297,20 @@ VQ-MPC learns useful imagination,
 but drifting model rollouts and sampling-based planning still limit performance.
 ```
 
+### Example Timeout
+
+The planner sometimes becomes trapped in a locally safe sequence of actions and reaches the 40-step limit.
+
+![VQ-MPC timeout](outputs/final/failures/vq_mpc_timeout_seed10000_h8_c1024.png)
+
+## Why I built This
+
+I wanted to understand whether a neural network could do more than recognize what is visible in an image. I wanted it to learn how a small world changes, use that learned model to imagine the consequences of different actions, and make decisions from those imagined futures. 
+
+World models are interesting because they try to model how an environment changes after actions, rather than only recognizing the current observation. DreamGrid is a small version of that idea.
+
+DreamGrid became sort of an experiment in building that complete loop myself: environment generation, visual representation learning, dynamics prediction, diagnostics, planning, and evaluation. Several earlier approaches failed, especially global latent dynamics and those failures shaped the final spatial VQ design.
+
 ## How To Run
 
 Ideally, use a GPU through Kaggle or Colab.
@@ -333,7 +361,7 @@ Visualize VQ-MPC episode:
 
 ```bash
 python -m eval.visualizations.visualize_vq_mpc_episode \
-  --seed 10000 \
+  --seed 10001 \
   --horizon 24 \
   --candidates 4096
 ```

@@ -19,6 +19,11 @@ def main():
     parser.add_argument("--seed_offset", type=int, default=10000)
     args = parser.parse_args()
 
+    torch.manual_seed(args.seed_offset)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed_offset)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     autoencoder = load_tile_autoencoder(args.autoencoder_checkpoint, device=device, latent_dim=args.latent_dim)
