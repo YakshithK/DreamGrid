@@ -12,9 +12,15 @@ Final answer:
 
 > Yes. A VQ-VAE + learned dynamics model + MPC planner reaches **85% success**, beating random and greedy baseline algorithms, while trailing a shortest-path oracle.
 
-## Demo
+## Web Demo
 
-The easiest way to run DreamGrid is the Colab demo:
+Open the direct web demo:
+
+https://yakshithk.github.io/DreamGrid/
+
+The demo shows DreamGrid running, including a VQ-MPC episode, learned imagination rollouts, final benchmark results, and a failure case.
+
+For reproducibility and retraining, use the Colab notebook:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YakshithK/DreamGrid/blob/master/notebooks/DreamGrid_Demo.ipynb)
 
