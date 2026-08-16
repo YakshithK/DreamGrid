@@ -4,8 +4,6 @@ I built a tiny world model that learns to imagine before it acts.
 
 The basic idea is like this. You show a neural network an 80x80 image of a grid. It learns what the colors mean. Then it learns to predict what happens when you move in a direction. And then instead of actually moving and seeing, it imagines moving and uses those imagined futures to decide what to do in the real environment.
 
-Most vision models just classify stuff. "What's in this image?" This one has to predict futures. "What happens if I move left?" And it has to be right enough to actually plan based on that.
-
 85% success rate. Better than random or greedy but loses to the oracle that knows the true map. The model decides what to do purely by imagining, never peeking at what actually happens in the real world while planning.
 
 ## Quick version
@@ -15,8 +13,6 @@ Can you learn a world model well enough to plan without calling the real simulat
 ## Try it
 
 Web demo: https://yakshithk.github.io/DreamGrid/
-
-You can see an actual episode where it plans and reaches a goal. Also shows what the model imagined while deciding. And a failure case.
 
 Train it yourself:
 
@@ -41,14 +37,6 @@ Blue square is the agent. Beige is floor. Black is walls. Red is hazards that ki
 You can move up, down, left, right, or do nothing. Each step costs 0.05 points. You die if you hit a hazard (lose 10 points). You win 10 points if you reach the goal. If you take more than 40 steps the episode ends.
 
 Very simple environment. The hard part is that the model has to figure out what the colors mean from looking at them. Then predict how they change when you move. Then use those predictions to plan without actually seeing what happens in the real world.
-
-## What I built
-
-I didn't just want to code a pathfinding algorithm. That's boring. Dijkstra works fine for grids.
-
-I wanted to build a system that learns the whole thing. Look at an image, understand what it means spatially, predict what happens when you move, imagine 4096 different futures, score them, pick the best one, move, then repeat.
-
-No peeking at the real environment while you plan. No cheating with a simulator. Just imagination based on what the model learned.
 
 ## The vision model
 
@@ -112,8 +100,6 @@ These 100 grids were the ones I used developing the planner so not a fresh test 
 ## Is it planning or memorizing
 
 65.5% match rate with oracle on the first move. So 1/3 of the time it picks something different. Still reaches the goal 85% of the time.
-
-Not memorizing. Found other solutions. Some lead to longer valid paths. Some fail outright. But not just copying.
 
 ## What failed
 
