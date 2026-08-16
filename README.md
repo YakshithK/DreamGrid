@@ -6,13 +6,11 @@ The basic idea is like this. You show a neural network an 80x80 image of a grid.
 
 Most vision models just classify stuff. "What's in this image?" This one has to predict futures. "What happens if I move left?" And it has to be right enough to actually plan based on that.
 
-It works okay. 85% success rate. The model decides what to do just by imagining, never looking at the actual environment while planning. Better than random. Better than a simple greedy agent. But still loses to an oracle that cheats and knows the true map.
+85% success rate. Better than random or greedy but loses to the oracle that knows the true map. The model decides what to do purely by imagining, never peeking at what actually happens in the real world while planning.
 
 ## Quick version
 
-Can you learn a world model well enough to plan without calling the real simulator?
-
-Yes. But it's weird and fragile. The model hallucinates sometimes. It drifts over time. But if you build the representation the right way spatially, it actually works.
+Can you learn a world model well enough to plan without calling the real simulator? Yeah. The model hallucinates. Drifts over time. But spatial representations help enough that it works anyway.
 
 ## Try it
 
@@ -60,9 +58,7 @@ I tried just compressing the whole image into one big vector first. That sucked.
 
 Instead I used a VQ-VAE. It learns a 10x10 grid of discrete codes. Each cell is one code. The model learned that code 3 means wall, code 7 means the agent is here, etc. It only needed 17 different codes total.
 
-It got tile classification right 99.6% of the time. More importantly it knew where the agent was 97.8% of the time. That's what matters.
-
-The key thing was keeping the spatial structure. Because the world is spatial. Walls don't teleport. The agent moves one cell at a time. So if your representation respects that, everything works better.
+99.6% tile accuracy. 97.8% agent position. The spatial structure was the difference. Walls don't teleport. The agent moves one cell at a time. Preserving that in the representation made the whole thing work.
 
 ## The world model
 
@@ -72,27 +68,17 @@ It gets it right about 99% of the time. Agent position is 93% accurate. Collisio
 
 ### How I trained it
 
-I gave it a bunch of different things to predict at the same time. Because predicting one step is hard otherwise.
+Multiple objectives at once. Predict the next code, the tile type, agent position, collisions, episode end, and reward. Predicting just one step ahead doesn't work. The model needs to care about everything simultaneously or it forgets what matters.
 
-Predict the next code. Predict the tile type. Predict agent position. Predict collisions. Predict if the episode is done. Predict the reward.
-
-All at once. This forces the model to not lose important stuff during quantization and prediction. Its like forcing it to care about things that matter for planning.
-
-Important thing. When the model is planning it never calls the real environment. It just imagines. If the imagined futures were bad then planning would fail. But they're not that bad.  
+When it plans it never touches the real environment. Pure imagination. If the predictions were garbage this wouldn't work. They're mediocre at worst.  
 
 ## Planning with imagination
 
-Each step the planner does this.
+Sample 4096 random action sequences, each 24 steps. Imagine what happens with each using the learned model. Score on reward, crashes, goal proximity, penalties for weird states. Pick the best. Execute the first action. Replan.
 
-Sample 4096 random action sequences. Each one is 24 steps long. Imagine what happens with each one using the learned model. Score each one on how much reward you get, whether you crash, how close you get to the goal, penalties for weird stuff.
+MPC. Standard in robotics but usually with simulators. Here the model is learned.
 
-Pick the best sequence. Execute just the first action. Then replanned from the new state.
-
-This is MPC, model predictive control. Robots use this all the time but usually with simulators or hand written models. Here the model is learned.
-
-24 steps is the horizon. If its too short the model can't see far enough to plan. If its too long the predictions drift and become garbage. 24 is about right.
-
-Why random sampling? Honestly it's just simpler. You could use cross entropy method or gradient based planning or all kinds of fancy stuff. But 4096 random candidates works fine, gets you to 85% success, so I just left it there.
+24 step horizon because shorter doesn't see far enough, longer predictions drift. Random sampling because gradient based is overkill. 4096 candidates work fine for 85% success.
 
 ## Baselines
 
@@ -117,77 +103,57 @@ I tested on 100 grids. Same configuration throughout. 24 step horizon, 4096 cand
 | **VQ-MPC** | **85%** | 0% | 15% timeout | 7.31 | 13.78 |
 | Oracle | 100% | 0% | 0% | 9.64 | 8.17 |
 
-So VQ-MPC works 85 times out of 100. Greedy barely gets past 47. Random is pathetic. Oracle always wins because it cheats and knows the map.
+85 out of 100. Greedy is 47. Random is 6. Oracle knows the map so its 100.
 
-The 15% gap to oracle is important. The learned model still makes mistakes. Sometimes it imagines a future that looks good but doesn't happen. Sometimes it gets stuck in a loop. Sometimes it takes too many steps.
+The learned model still fails. Sometimes it imagines a future that never happens. Sometimes loops. Sometimes wasts too many steps. But 85% means it actually works for planning.
 
-But 85% means the learned model is actually useful for planning. That's the whole thing. You can use it.
+These 100 grids were the ones I used developing the planner so not a fresh test set. Just what I benchmarked against.
 
-Note: these 100 grids are the same ones I used while developing the planner. So not a brand new test set. Just the benchmark I ended up with.
+## Is it planning or memorizing
 
-## Is it actually planning or just copying
+65.5% match rate with oracle on the first move. So 1/3 of the time it picks something different. Still reaches the goal 85% of the time.
 
-I checked if the model just memorized the optimal path. Compared the first action VQ-MPC picks against what the oracle would pick.
+Not memorizing. Found other solutions. Some lead to longer valid paths. Some fail outright. But not just copying.
 
-It matches 65.5% of the time. So 1/3 of the time the model picks a different first move. But still reaches the goal 85% of the time.
+## What failed
 
-So its not just copying the oracle. Its found other solutions. Some different first moves lead to longer valid paths. Some are just wrong and it fails. Either way its not just memorizing.
+Global latent vector approach: compress 80x80 to one number, predict forward. Agents disappeared. Two agents sometimes. Agent in walls. After 8 steps the visualizations were gibberish.
 
-## What I tried before
+66% agent detection. 60% position. 82% collisions. Can't plan when you're wrong 40% of the time about where the agent is.
 
-First approach: compress the whole 80x80 image into one global vector. Then predict the next state.
+Spatial dynamics fixed it. Predict each 10x10 cell separately. 99% detection. 99% position. 99.9% collisions.
 
-Complete disaster.
+The world is spatial. Preserving that in the representation changes everything. Final VQ model kept spatial structure but learns from RGB instead of hand labeled tiles.
 
-The model would make up stuff. Agents would disappear. Sometimes there were two agents. Sometimes the agent was in a wall. After 8 steps of predicting the future it just looked wrong. The visualizations were nonsense.
+## Failure modes (15% of the time)
 
-Metrics showed it:
-Agent detection 66%. Agent position 60%. Collision prediction 82%.
+Model drift. After 20 steps the errors stack. The planner optimizes for a goal that isn't there. Like being sure you win at chess but you hallucinated your opponent's position.
 
-You can't plan when the model is wrong 40% of the time about where the thing even is. Fails immediately.
+Local optima. 4096 random sequences sometimes all lean the same way. The planner commits, gets turned around, burns steps before realizing the path was wrong.
 
-So I tried something else. Spatial dynamics. Predict each cell separately. 10x10 grid, each cell independently predicts the next state.
+The done signal lies. 99% accurate but 1% says goal when the agent is 5 squares away. The planner goes there. Doesn't work.
 
-Immediately way better.
-Agent detection 99%. Agent position 99%. Collisions 99.9%.
+Conservative paths. Safe but slow. Takes 25 steps instead of 8. Works. Wastes time.
 
-That was the key insight. The world is spatial. Agents don't teleport. Walls are fixed. If your representation respects that, it all works better.
-
-The final VQ model keeps that spatial structure but also learns from RGB images instead of hand labeled tiles. Both things together.
-
-## Why it still fails
-
-15% of the time it times out. Gets stuck in a loop, wastes steps, hits the 40 step limit.
-
-Model drift is the big one. After like 20 steps of predicting the future the errors add up. The planner thinks the goal is somewhere but it's not. Like planning 3 moves in chess and being sure you win but you got the opponent's position wrong.
-
-Local optima. The planner samples 4096 sequences, all random. Sometimes all the good ones go the same direction. It commits to that direction, gets turned around, and by the time it realizes its wrong it already used too many steps.
-
-The done signal is wrong sometimes. The model is 99% right about when you reach the goal. But 1% of the time it says goal when you're 5 squares away. The planner thinks thats the best move and goes there. Doesn't work.
-
-Sometimes it just picks safe but slow paths. Takes 25 steps when it could take 8. It works, just not efficiently.
-
-One example:
+Example timeout:
 
 ![VQ-MPC timeout](outputs/final/failures/vq_mpc_timeout_seed10000_h8_c1024.png)
 
-The agent just cycles through the same 4 moves. Never crashes, never reaches the goal. Times out. The model drifted and imagined the goal somewhere that doesn't exist. The planner kept going back to that spot.
+Agent cycles through 4 moves. Never crashes. Never reaches goal. The model drifted and imagined a goal that doesn't exist. Planner kept returning to that phantom spot.
 
-Basically the learned model is okay. 85% success. But model drift is still the problem. Not reliable enough for a real robot.
+Model drift is the wall. 85% success but not robot-reliable.
 
 ## Why I built this
 
-Most vision models just classify stuff. "Whats in this image?" They describe what they see.
+Most vision models classify. "Whats in this image?" They don't predict how things change. Can't answer "what if I move left?"
 
-They don't predict how things change. They can't answer "what if I move left?" They're just looking, not thinking.
+I wanted something that imagines. Takes an image, understands the layout, predicts what happens when you move, and plans from that. Not guessing. Actually thinking forward.
 
-I wanted to build something that imagines. Takes an image, understands the layout, predicts what happens when you move, and uses that to plan. Not just guess. Actually think forward.
+Wanted to build the whole pipeline myself. Environment generation. Vision model. Dynamics. Planner. See where it breaks.
 
-I wanted to do the whole pipeline myself. Generate the environment. Train the vision model. Train the dynamics. Write the planner. See where it breaks.
+The global latent approach broke everywhere. Agents vanished. Hallucinated multiple agents. Predictions that looked like noise. I was looking at visualizations at 3am just laughing at how wrong it was. But the failure was useful. Spatial structure matters. Grids should stay grids.
 
-The global latent approach broke hard. Agents disappearing, hallucinating multiple agents, predictions that made no sense. I remember looking at the visualizations at like 3am and just laughing because it was so wrong. But that failure taught me spatial structure matters. Grids should stay grids in the representation.
-
-Eventually I had something that could imagine okay. Not perfect. But good enough to navigate without the map. That was the goal.
+Built something that imagines okay. Not perfect. Good enough to navigate without the map.
 
 ## Run it
 
@@ -232,18 +198,14 @@ python -m eval.visualizations.visualize_vq_imagination \
 
 Takes a few minutes on GPU per step.
 
-## Conclusion
+Can you learn a world model well enough to plan? Yeah. 85% success. Better than random or greedy. Worse than oracle. Sometimes times out.
 
-Can you learn a world model well enough to plan without looking at the environment?
+The model sees a grid, predicts futures, navigates. No hand coded logic. No peeking at the simulator while planning. Just imagination.
 
-Yeah. 85% success. Works better than random or greedy. Loses to the oracle. Times out sometimes.
+Information survives quantization and spatial representation and forward prediction and actually gets used for planning. Its fragile but works.
 
-Its not perfect but it works. The model learned to see a grid, predict futures, and navigate. No hand coded logic. No calling a simulator while planning. Just imagined futures.
+Model drift breaks it after 20 steps. I don't have a fix. Maybe longer training or better loss design. Stopped here though.
 
-The interesting thing is that it works at all. You can pack information through quantization, keep it in a spatial representation, predict it forward, and actually use it. Its fragile. But it works.
+Use A* if you need grid navigation in production. This is interesting if you care about world models or why spatial structure helps.
 
-Model drift is the problem. After 20 steps the predictions get worse. I don't have a good fix for it. Maybe longer training or better losses. I just stopped here.
-
-If you care about world models or imagination or why spatial structure matters, maybe this helps. If you need to solve grid navigation in real life just use A*.
-
-Code is here. Colab works. Visualizations are cool. Go try it.
+Code is there. Colab notebook ready. Visualizations are fun to watch. Run it if you want.
