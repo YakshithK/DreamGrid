@@ -1,399 +1,249 @@
 # DreamGrid
 
-DreamGrid is a small visual world model where the model learns a compact representation of a grid-like environment from RGB observations, imagines future states under candidate actions, and uses those imagined states to plan efficiently toward the goal.
+I built a tiny world model that learns to imagine before it acts.
 
-## TL;DR
+The basic idea is like this. You show a neural network an 80x80 image of a grid. It learns what the colors mean. Then it learns to predict what happens when you move in a direction. And then instead of actually moving and seeing, it imagines moving and uses those imagined futures to decide what to do in the real environment.
 
-DreamGrid asks:
+Most vision models just classify stuff. "What's in this image?" This one has to predict futures. "What happens if I move left?" And it has to be right enough to actually plan based on that.
 
-> Can a learned world model predict action-conditioned futures well enough to plan internally?
+It works okay. 85% success rate. The model decides what to do just by imagining, never looking at the actual environment while planning. Better than random. Better than a simple greedy agent. But still loses to an oracle that cheats and knows the true map.
 
-Final answer:
+## Quick version
 
-> Yes. A VQ-VAE + learned dynamics model + MPC planner reaches **85% success**, beating random and greedy baseline algorithms, while trailing a shortest-path oracle.
+Can you learn a world model well enough to plan without calling the real simulator?
 
-## Web Demo
+Yes. But it's weird and fragile. The model hallucinates sometimes. It drifts over time. But if you build the representation the right way spatially, it actually works.
 
-Open the direct web demo:
+## Try it
 
-https://yakshithk.github.io/DreamGrid/
+Web demo: https://yakshithk.github.io/DreamGrid/
 
-The demo shows DreamGrid running, including a VQ-MPC episode, learned imagination rollouts, final benchmark results, and a failure case.
+You can see an actual episode where it plans and reaches a goal. Also shows what the model imagined while deciding. And a failure case.
 
-For reproducibility and retraining, use the Colab notebook:
+Train it yourself:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YakshithK/DreamGrid/blob/master/notebooks/DreamGrid_Demo.ipynb)
 
-### Real VQ-MPC Episode
+### Real episode
 
 ![VQ-MPC episode](outputs/final/episodes/vq_mpc_episode_seed10001_h8_c1024.png)
 
-### Learned Imagination
+### What it imagined
 
 ![VQ Imagination](outputs/final/imaginations/vq_imagination_seed10000_h24_c4096_k4.png)
 
-The imagination visualization shows candidate futures sampled by the planner. Each candidate is rolled forward by the learned VQ dynamics model, scored, and compared against what actually happens when the candidate is executed.
+So the planner samples a bunch of random action sequences, like 4096 of them. Each one is 24 steps long. It imagines what happens with each one using the learned dynamics model. Not the real world. Just the learned model. Then it scores each imagined future and picks the best one. The image above shows the top 4 candidates. You can see paths that get closer to the goal, avoid walls and hazards, stuff like that.
 
-## Environment
+## The setup
 
-DreamGrid uses a 10x10 rescue grid rendered as an 80x80 RGB image.
+Its a 10x10 grid. Rendered as an 80x80 image.
 
-Tiles:
+Blue square is the agent. Beige is floor. Black is walls. Red is hazards that kill you. Green is the goal.
 
-| Tile | Meaning |
-|--|--|
-| beige | floor |
-| black | wall |
-| red | hazard |
-| green | goal |
-| blue | agent |
+You can move up, down, left, right, or do nothing. Each step costs 0.05 points. You die if you hit a hazard (lose 10 points). You win 10 points if you reach the goal. If you take more than 40 steps the episode ends.
 
-The agent can move:
+Very simple environment. The hard part is that the model has to figure out what the colors mean from looking at them. Then predict how they change when you move. Then use those predictions to plan without actually seeing what happens in the real world.
 
-```text
-up, down, left, right, stay
-```
+## What I built
 
-Rewards:
+I didn't just want to code a pathfinding algorithm. That's boring. Dijkstra works fine for grids.
 
-```text
-step: -0.05
-wall: -1.00
-hazard: -10.00
-goal: +10.00
-```
+I wanted to build a system that learns the whole thing. Look at an image, understand what it means spatially, predict what happens when you move, imagine 4096 different futures, score them, pick the best one, move, then repeat.
 
-Episodes terminate when the agent reaches the goal, hits a hazard, or times out.
+No peeking at the real environment while you plan. No cheating with a simulator. Just imagination based on what the model learned.
 
-## Project Goal
+## The vision model
 
-The goal was not just to solve the grid with hand-coded search.
+I needed to turn an 80x80 image into something the dynamics model could predict.
 
-The goal was to build a tiny world model:
+I tried just compressing the whole image into one big vector first. That sucked. The model would forget where the agent was. It couldn't keep track of anything spatial. So that didn't work.
 
-```text
-RGB observation
--> learned visual representation
--> learned action-conditioned dynamics
--> imagined future rollouts
--> MPC planning
--> real environment action
-```
+Instead I used a VQ-VAE. It learns a 10x10 grid of discrete codes. Each cell is one code. The model learned that code 3 means wall, code 7 means the agent is here, etc. It only needed 17 different codes total.
 
-## VQ-VAE
+It got tile classification right 99.6% of the time. More importantly it knew where the agent was 97.8% of the time. That's what matters.
 
-The VQ-VAE, or Vector Quantized Variational Autoencoder, learns a discrete visual state from RGB images.
+The key thing was keeping the spatial structure. Because the world is spatial. Walls don't teleport. The agent moves one cell at a time. So if your representation respects that, everything works better.
 
-Instead of compressing the whole image into one global vector, it preserves spatial structure:
+## The world model
 
-```text
-RGB image: [3, 80, 80]
-discrete codes: [10, 10]
-```
+This is the thing that actually predicts. You give it the current 10x10 grid of codes and an action and it predicts the next grid. Also predicts whether you hit something, whether you won, what your reward is.
 
-This matters because the world is spatial. The agent, walls, hazards, and goal all live in discrete grid cells.
+It gets it right about 99% of the time. Agent position is 93% accurate. Collision detection is 99.9% accurate.
 
-Final VQ-VAE metrics:
+### How I trained it
 
-```text
-tile accuracy:           0.9962
-important tile accuracy: 0.9958
-single-agent rate:       0.9783
-codes used:              17
-```
+I gave it a bunch of different things to predict at the same time. Because predicting one step is hard otherwise.
 
-## VQ Dynamics
+Predict the next code. Predict the tile type. Predict agent position. Predict collisions. Predict if the episode is done. Predict the reward.
 
-The VQ (also Vector Quantized) dynamics model predicts the next discrete visual state given:
+All at once. This forces the model to not lose important stuff during quantization and prediction. Its like forcing it to care about things that matter for planning.
 
-```text
-current VQ code grid
-action
-```
+Important thing. When the model is planning it never calls the real environment. It just imagines. If the imagined futures were bad then planning would fail. But they're not that bad.  
 
-It also predicts:
+## Planning with imagination
 
-```text
-reward
-done
-collision
-```
+Each step the planner does this.
 
-This is the actual learned world model. It does not call the real environment during planning.
+Sample 4096 random action sequences. Each one is 24 steps long. Imagine what happens with each one using the learned model. Score each one on how much reward you get, whether you crash, how close you get to the goal, penalties for weird stuff.
 
-Final Dynamics Metrics:
+Pick the best sequence. Execute just the first action. Then replanned from the new state.
 
-```text
-code accuracy:       ~0.99
-tile accuracy:      ~0.995
-agent position acc:  ~0.93
-single-agent rate:  ~0.985
-collision accuracy: ~0.999
-```
+This is MPC, model predictive control. Robots use this all the time but usually with simulators or hand written models. Here the model is learned.
 
-### Training Supervision
+24 steps is the horizon. If its too short the model can't see far enough to plan. If its too long the predictions drift and become garbage. 24 is about right.
 
-The representation is learned from RGB images, but the final VQ-VAE is not trained with RGB reconstruction alone. Because each rendered cell has a known semantic class, training also uses an auxiliary supervised tile-classification loss for floor, wall, hazard, goal and agent tiles.
-
-The VQ dynamics model similarly receives losses for next-code prediction, decoded tile prediction, agent position, reward, termination and collision. These auxiliary objectives make action-relevant information survive quantization and multi-step prediction.
-
-During planning, the real simulator is not queried to predict candidate futures. However, the MPC scoring function is hand-designed: it scores learned predictions using reward, collision probability, goal progress, invalid-agent states, and predicted overlap with static hazards or walls.  
-
-## Planning with Imagination
-
-VQ-MPC samples candidate action sequences.
-
-Example:
-
-```text
-candidate 1: right right up up left ...
-candidate 2: up up right down ...
-candidate 3: left up up right ...
-```
-
-For each candidate, the learned dynamics model imagines what future states would look like.
-
-Then each imagined rollout is scored using:
-
-```text
-predicted reward
-predicted collision
-agent-goal progress
-invalid-agent penalty
-hazard/wall penalty
-```
-
-The planner executes only the first action from the best-scoring sequence. On the next environment step, it replans.
-
-This is model predictive control.
+Why random sampling? Honestly it's just simpler. You could use cross entropy method or gradient based planning or all kinds of fancy stuff. But 4096 random candidates works fine, gets you to 85% success, so I just left it there.
 
 ## Baselines
 
-I compared VQ-MPC against:
+I tested against three things.
 
-| Baseline | Description |
-| --- | --- |
-| Random | Samples random actions |
-| Greedy | Moves toward the goal using local distance |
-| Oracle | Uses true shortest path over the environment map |
+Random just picks random actions. Its bad.
 
-The oracle is not a learned model. It is an upper bound.
+Greedy always moves closer to the goal. Sounds like it should work but it doesn't. Gets stuck on walls, can't avoid hazards coming. Gets like 47% success.
 
-## Final Results
+Oracle cheats and knows the actual map and uses shortest path. Gets 100%. Its the ceiling.
 
-The final VQ-MPC setting was:
+My model had to beat random and greedy. Obviously can't beat oracle.
 
-```text
-episodes:      100
-horizon:        24
-candidates:   4096
-seed_offset: 10000
-```
+## Results (100 episodes)
 
-Results:
+I tested on 100 grids. Same configuration throughout. 24 step horizon, 4096 candidates.
 
-| Policy | Success | Hazard Death | Timeout | Avg Reward | Avg Steps | Avg Collisions |
-|---|---:|---:|---:|---:|---:|---:|
-| Random | 0.06 | 0.50 | 0.44 | -11.67 | 27.67 | 6.23 |
-| Greedy | 0.47 | 0.00 | 0.53 | 3.52 | 23.98 | 0.00 |
-| VQ-MPC | 0.85 | 0.00 | 0.15 | 7.31 | 13.78 | 0.57 |
-| Oracle | 1.00 | 0.00 | 0.00 | 9.64 | 8.17 | 0.00 |
+| Method | Success | Crashes | Timeouts | Avg Reward | Avg Steps |
+|---|---:|---:|---:|---:|---:|
+| Random | 6% | 50% die | 44% timeout | -11.67 | 27.67 |
+| Greedy | 47% | 0% | 53% timeout | 3.52 | 23.98 |
+| **VQ-MPC** | **85%** | 0% | 15% timeout | 7.31 | 13.78 |
+| Oracle | 100% | 0% | 0% | 9.64 | 8.17 |
 
-The environment maps use seeds 10000 through 10099. Candidate-action sampling is also seeded for reproducibility. These seeds were used during planner development, so the reported planner result should be interpreted as a fixed benchmark rather than a completely untouched test set. 
+So VQ-MPC works 85 times out of 100. Greedy barely gets past 47. Random is pathetic. Oracle always wins because it cheats and knows the map.
 
-VQ-MPC beats greedy by:
+The 15% gap to oracle is important. The learned model still makes mistakes. Sometimes it imagines a future that looks good but doesn't happen. Sometimes it gets stuck in a loop. Sometimes it takes too many steps.
 
-```text
-0.85 - 0.47 = +0.38 success rate
-```
+But 85% means the learned model is actually useful for planning. That's the whole thing. You can use it.
 
-It beats random by:
+Note: these 100 grids are the same ones I used while developing the planner. So not a brand new test set. Just the benchmark I ended up with.
 
-```text
-0.85 - 0.06 = +0.79 success rate
-```
+## Is it actually planning or just copying
 
-It remains below oracle by:
+I checked if the model just memorized the optimal path. Compared the first action VQ-MPC picks against what the oracle would pick.
 
-```text
-1.00 - 0.85 = 0.15
-```
+It matches 65.5% of the time. So 1/3 of the time the model picks a different first move. But still reaches the goal 85% of the time.
 
-## Action Quality
+So its not just copying the oracle. Its found other solutions. Some different first moves lead to longer valid paths. Some are just wrong and it fails. Either way its not just memorizing.
 
-I also evaluated whether VQ-MPC's first action matched the oracle shortest-path first action.
+## What I tried before
 
-Setting:
+First approach: compress the whole 80x80 image into one global vector. Then predict the next state.
 
-```text
-states:      200
-horizon:      24
-candidates: 4096
-```
+Complete disaster.
 
-Result:
+The model would make up stuff. Agents would disappear. Sometimes there were two agents. Sometimes the agent was in a wall. After 8 steps of predicting the future it just looked wrong. The visualizations were nonsense.
 
-```text
-oracle first-action match: 0.655
-```
+Metrics showed it:
+Agent detection 66%. Agent position 60%. Collision prediction 82%.
 
-This means that VQ-MPC chooses the same first action as oracle about 65.5% of the time, but it is not just copying shortest-path behavior. It can choose different first moves and still succeed.
+You can't plan when the model is wrong 40% of the time about where the thing even is. Fails immediately.
 
-## What I tried before VQ
+So I tried something else. Spatial dynamics. Predict each cell separately. 10x10 grid, each cell independently predicts the next state.
 
-My first approach used a global latent dynamics model.
+Immediately way better.
+Agent detection 99%. Agent position 99%. Collisions 99.9%.
 
-That failed because the model did not reliably preserve agent motion. It sometimes produced:
+That was the key insight. The world is spatial. Agents don't teleport. Walls are fixed. If your representation respects that, it all works better.
 
-```text
-missing agents
-multiple agents
-wrong movement
-bad long-horizon rollouts
-```
+The final VQ model keeps that spatial structure but also learns from RGB images instead of hand labeled tiles. Both things together.
 
-The important diagnostic was action-outcome accuracy:
+## Why it still fails
 
-```text
-single-agent rate:            0.660
-next-agent-position accuracy: 0.597
-collision accuracy:           0.819
-```
+15% of the time it times out. Gets stuck in a loop, wastes steps, hits the 40 step limit.
 
-That was not good enough for planning.
+Model drift is the big one. After like 20 steps of predicting the future the errors add up. The planner thinks the goal is somewhere but it's not. Like planning 3 moves in chess and being sure you win but you got the opponent's position wrong.
 
-Then I built a spatial tile dynamics model. It performed much better and told me that spatial structure was necessary.
+Local optima. The planner samples 4096 sequences, all random. Sometimes all the good ones go the same direction. It commits to that direction, gets turned around, and by the time it realizes its wrong it already used too many steps.
 
-Spatial dynamics result:
+The done signal is wrong sometimes. The model is 99% right about when you reach the goal. But 1% of the time it says goal when you're 5 squares away. The planner thinks thats the best move and goes there. Doesn't work.
 
-```text
-single-agent rate: 0.989
-next-agent-position accuracy: 0.989
-collision accuracy: 0.999
-```
+Sometimes it just picks safe but slow paths. Takes 25 steps when it could take 8. It works, just not efficiently.
 
-The final VQ model keeps that spatial structure, but learns the visual representation from RGB.
-
-## Failure Analysis
-
-VQ-MPC still fails sometimes. It's not bulletproof.
-
-Main remaining failure:
-
-```text
-timeout
-```
-
-The learned planner usually avoids hazards, but it can still be inefficient.
-
-Observed issues:
-
-```
-1. Long-horizon search works but is expensive.
-2. The learned done head can produce false alarms.
-3. Imagined rollouts can drift.
-4. The planner sometimes chooses safe but slow and windy paths.
-5. VQ-MPC is still less efficient than oracle.
-```
-
-The final result is strong, but not yet magic:
-
-```text
-VQ-MPC learns useful imagination,
-but drifting model rollouts and sampling-based planning still limit performance.
-```
-
-### Example Timeout
-
-The planner sometimes becomes trapped in a locally safe sequence of actions and reaches the 40-step limit.
+One example:
 
 ![VQ-MPC timeout](outputs/final/failures/vq_mpc_timeout_seed10000_h8_c1024.png)
 
-## Why I built This
+The agent just cycles through the same 4 moves. Never crashes, never reaches the goal. Times out. The model drifted and imagined the goal somewhere that doesn't exist. The planner kept going back to that spot.
 
-I wanted to understand whether a neural network could do more than recognize what is visible in an image. I wanted it to learn how a small world changes, use that learned model to imagine the consequences of different actions, and make decisions from those imagined futures. 
+Basically the learned model is okay. 85% success. But model drift is still the problem. Not reliable enough for a real robot.
 
-World models are interesting because they try to model how an environment changes after actions, rather than only recognizing the current observation. DreamGrid is a small version of that idea.
+## Why I built this
 
-DreamGrid became sort of an experiment in building that complete loop myself: environment generation, visual representation learning, dynamics prediction, diagnostics, planning, and evaluation. Several earlier approaches failed, especially global latent dynamics and those failures shaped the final spatial VQ design.
+Most vision models just classify stuff. "Whats in this image?" They describe what they see.
 
-## How To Run
+They don't predict how things change. They can't answer "what if I move left?" They're just looking, not thinking.
 
-Ideally, use a GPU through Kaggle or Colab.
+I wanted to build something that imagines. Takes an image, understands the layout, predicts what happens when you move, and uses that to plan. Not just guess. Actually think forward.
 
-Install dependencies:
+I wanted to do the whole pipeline myself. Generate the environment. Train the vision model. Train the dynamics. Write the planner. See where it breaks.
+
+The global latent approach broke hard. Agents disappearing, hallucinating multiple agents, predictions that made no sense. I remember looking at the visualizations at like 3am and just laughing because it was so wrong. But that failure taught me spatial structure matters. Grids should stay grids in the representation.
+
+Eventually I had something that could imagine okay. Not perfect. But good enough to navigate without the map. That was the goal.
+
+## Run it
+
+Use Colab for free GPU:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YakshithK/DreamGrid/blob/master/notebooks/DreamGrid_Demo.ipynb)
+
+Or locally:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Generate data:
+In order:
 
 ```bash
+# Generate training data
 python -m scripts.generate_transitions
-```
 
-Train VQ-VAE:
-
-```bash
+# Train vision model
 python -m training.final.train_vqvae
-```
 
-Train VQ Dynamics:
-
-```bash
+# Train world model
 python -m training.final.train_vq_dynamics
 ```
 
-Evaluate VQ-MPC:
+Then test it:
 
 ```bash
+# Test 100 episodes
 python -m eval.planners.evaluate_vq_planners \
-  --episodes 100 \
-  --horizon 24 \
-  --candidates 4096 
-```
+  --episodes 100 --horizon 24 --candidates 4096
 
-Evaluate action quality:
-
-```bash
-python -m eval.diagnostics.evaluate_vq_mpc_action_quality \
-  --states 200 \
-  --horizon 24 \
-  --candidates 4096
-```
-
-Visualize VQ-MPC episode:
-
-```bash
+# See one episode
 python -m eval.visualizations.visualize_vq_mpc_episode \
-  --seed 10001 \
-  --horizon 24 \
-  --candidates 4096
-```
+  --seed 10001 --horizon 24 --candidates 4096
 
-Visualize learned imagination:
-
-```bash
+# See what it imagined
 python -m eval.visualizations.visualize_vq_imagination \
-  --seed 10000 \
-  --horizon 24 \
-  --candidates 4096 \
-  --top_k 4
+  --seed 10000 --horizon 24 --candidates 4096 --top_k 4
 ```
+
+Takes a few minutes on GPU per step.
 
 ## Conclusion
 
-DreamGrid shows that a small learned visual world model can support planning.
+Can you learn a world model well enough to plan without looking at the environment?
 
-The final system:
+Yeah. 85% success. Works better than random or greedy. Loses to the oracle. Times out sometimes.
 
-```text
-learns a visual discrete state
-predicts action-conditioned futures
-scores imagined rollouts
-chooses actions with MPC
-beats random and greedy baselines
-```
+Its not perfect but it works. The model learned to see a grid, predict futures, and navigate. No hand coded logic. No calling a simulator while planning. Just imagined futures.
 
-The result is not perfect, but it is a meaningful demonstration of learned visual imagination for planning.
+The interesting thing is that it works at all. You can pack information through quantization, keep it in a spatial representation, predict it forward, and actually use it. Its fragile. But it works.
+
+Model drift is the problem. After 20 steps the predictions get worse. I don't have a good fix for it. Maybe longer training or better losses. I just stopped here.
+
+If you care about world models or imagination or why spatial structure matters, maybe this helps. If you need to solve grid navigation in real life just use A*.
+
+Code is here. Colab works. Visualizations are cool. Go try it.
